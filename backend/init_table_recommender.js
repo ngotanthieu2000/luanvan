@@ -1,0 +1,1 @@
+table.setCell('Love at last', 'Alice', 5)

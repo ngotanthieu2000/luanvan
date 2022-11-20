@@ -1,0 +1,32 @@
+###
+GET http://localhost:5000/product/getById
+
+###
+POST http://localhost:5000/product/create
+Content-Type: application/json
+
+{
+    "title":"IPhone14",
+    "qty":8,
+    "price":3999,
+    "sortDescription":"Thong minh tai nang tu duy dinh cao",
+    "attributes":[
+        {"key":"Weight","value":"7.25kg"},
+        {
+            "key":"Dimensions",
+            "value":"90 x 60 x 90 cm"
+        },{
+            "key":"Size",
+            "value":"Size"
+        },
+        {
+            "key":"color",
+            "value":"Black with Red, White with Gold"
+        },{
+            "key":"Guarantee",
+            "value":"5 years"
+        }
+        ]
+          
+    
+}
