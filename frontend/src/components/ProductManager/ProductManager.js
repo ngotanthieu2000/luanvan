@@ -1,54 +1,41 @@
 import React, { useState, useEffect } from "react";
 import Footer from "../Footer/Footer";
 import Navbar from "../Navbar/Navbar";
-import PerfectScrollbar from "react-perfect-scrollbar";
-import { format } from "date-fns";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
-import UpgradeIcon from "@mui/icons-material/Upgrade";
-import InventoryIcon from "@mui/icons-material/Inventory";
 import ListIcon from "@mui/icons-material/List";
 import {
-  createProduct,
   createCategories,
   updateCategories,
+  createBrand,
 } from "../../api/auth";
-import { getCategories, getProducts } from "../../api/api_instance";
+import { checkAdmin, getAllProducts, getBrands, getCategories, getProducts } from "../../api/api_instance";
 import { useNavigate } from "react-router-dom";
 import {
-  Tooltip,
   Box,
   Button,
-  Card,
-  CardActions,
-  CardActionArea,
-  FormControl,
   Divider,
   Grid,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableContainer,
   Typography,
   Modal,
   TextField,
-  InputLabel,
-  Select,
   MenuItem,
-  IconButton,
-  CardMedia,
 } from "@mui/material";
-import { customers } from "../../__mocks__/customers";
 import { Stack } from "@mui/system";
 import CreateProduct from "./CreateProduct";
 import ListProduct from "./ListProduct";
 import UpdateProduct from "./UpdateProduct";
+import { ToastContainer } from "react-toastify";
+import { showErrorToastMessage } from "../../utils/toast.alert";
+import ProcessLoadingModal from "./ProcessLoadingModal";
+import { ConstructionOutlined } from "@mui/icons-material";
 export default function ProductManager() {
   let navigate = useNavigate();
+  const [openProcessLoading,setOpenProcessLoading] = useState(false);
+  const hanldShowOrHideProcessLoading = (bool)=>{
+    console.log({bool})
+    setOpenProcessLoading(bool)
+  }
   const [view, setView] = useState("ListProduct");
   const [limit, setLimit] = useState(10);
   const [page, setPage] = useState(0);
@@ -56,25 +43,57 @@ export default function ProductManager() {
   const [value, setValue] = useState("");
   const [productUpdate, setProductUpdate] = useState();
   // product handle
+  //brand
+  const [brands, setBrands] = useState([]);
   const [products, setProducts] = useState();
-  useEffect(() => {
-    async function fetchData() {
-      const { element } = await getProducts();
-      console.log("product_fetch", element);
-      setProducts(element);
+  async function fetchDataCategories() {
+    const { element } = await getCategories();
+    console.log("categories fetch data:::", element);
+    setCategories(element);
+    setIsCategories(element[0].name);
+  }
+  async function fetchDataBrand(){
+    const { element } = await getBrands();
+      console.log("brand_fetch", element);
+      setBrands(element);
+  }
+  async function fetchDataProducts() {
+    const { element } = await getAllProducts();
+    console.log("product_fetch", element);
+    setProducts(element);
+  }
+  async function checkRoleAdmin(){
+    const res = await checkAdmin({_id:localStorage.getItem('_id')})
+    if(res.status=== 'Success') {
+      fetchDataProducts();
+        fetchDataBrand();
+        fetchDataCategories();
     }
-    fetchData();
-    console.log("products", products);
+    else {
+      navigate("/abc")
+      
+    }
+  }
+  useEffect(() => {
+    if(!localStorage.getItem('_id')){
+      navigate("/abc")
+    }
+    else {
+      checkRoleAdmin()
+    }
   }, []);
   // modal controll
   const [modalProduct, setModalProduct] = useState(false);
   const [modalProductUpdate, setModalProductUpdate] = useState(false);
   const [modalType, setModalType] = useState(false);
+  const [modalBrand, setModalBrand] = useState(false);
   const [newType, setNewType] = useState(false);
   const handleOpen = () => setModalProduct(true);
   const handleClose = () => setModalProduct(false);
   const handleOpenCreateType = () => setModalType(true);
   const handleCloseCreateType = () => setModalType(false);
+  const handleOpenCreateBrand = () => setModalBrand(true);
+  const handleCloseCreateBrand = () => setModalBrand(false);
   const handleLimitChange = (event) => {
     setLimit(event.target.value);
   };
@@ -94,16 +113,9 @@ export default function ProductManager() {
     setIsCategories(event.target.value);
     setType(temp);
   };
-
-  useEffect(() => {
-    async function fetchData() {
-      const { element } = await getCategories();
-      console.log("categories fetch data:::", element);
-      setCategories(element);
-      setIsCategories(element[0].name);
-    }
-    fetchData();
-  }, []);
+  // useEffect(() => {
+  //   fetchDataCategories();
+  // }, []);
   // controll atributes
   const [attributes, setAttributes] = useState([]);
   // const [item, setItem] = useState({});
@@ -151,18 +163,23 @@ export default function ProductManager() {
         type: data.get("type"),
       });
     }
-    setCategories(
-      [...categories].map((object) => {
-        if (object.name === data.get("categories")) {
-          return {
-            ...object,
-            ...res.element,
-          };
-        } else return object;
-      })
-    );
+    fetchDataCategories();
     handleCloseCreateType();
   };
+  // submit create brand
+  const handleSubmitCreateBrand = async (event)=>{
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    // console.log({name:data.get('brand')})
+    var res = await createBrand({name:data.get('brand'),categories:data.get('categories')})
+    console.log("res create brand", res)
+    if(res.status === "Success"){
+      setBrands([...brands,res.element])
+      handleCloseCreateBrand();
+    }else{
+      showErrorToastMessage(res.msg)
+    }
+  }
   // update product
   const handleShowUpdateProduct = (product) => {
     setProductUpdate(product);
@@ -172,6 +189,10 @@ export default function ProductManager() {
   const handleUpdateProduct = async (index) => {
     console.log("Data product current:::", products[index]);
   };
+  // handle change view
+  const hanldeChangeView = (view)=>{
+    setView(view)
+  }
   return (
     <>
       <Navbar />
@@ -340,6 +361,95 @@ export default function ProductManager() {
                       </Box>
                     </Box>
                   </Modal>
+                  <Button
+                    startIcon={<AddIcon />}
+                    variant="contained"
+                    onClick={handleOpenCreateBrand}
+                  >
+                    New Brand
+                  </Button>
+                  <Modal
+                    open={modalBrand}
+                    onClose={handleCloseCreateBrand}
+                    aria-labelledby="modal-modal-title"
+                    aria-describedby="modal-modal-description"
+                  >
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        width: 1000,
+                        bgcolor: "background.paper",
+                        border: "1px solid #000",
+                        boxShadow: 24,
+                        p: 4,
+                      }}
+                    >
+                      <Typography
+                        id="modal-modal-title"
+                        variant="h6"
+                        component="h2"
+                      >
+                        Create New Brand
+                      </Typography>
+                      <Box
+                        id="modal-modal-description"
+                        component="form"
+                        noValidate
+                        onSubmit={handleSubmitCreateBrand}
+                        sx={{ mt: 3 }}
+                      >
+                        <Grid
+                          container
+                          spacing={2}
+                          sx={{ display: "flex", justifyItems: "center" }}
+                        >
+                          <Grid item xs={6} sm={6}>
+                            <TextField
+                              autoComplete="categories"
+                              name="categories"
+                              select
+                              value={isCategories}
+                              fullWidth
+                              id="categories"
+                              label="Select Categories"
+                              autoFocus
+                              onChange={(e) => {
+                                setIsCategories(e.target.value);
+                              }}
+                            >
+                              {categories?.map((option, index) => (
+                                <MenuItem key={option.name} value={option.name}>
+                                  {option.name}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </Grid>
+                          <Grid item xs={6} sm={6}>
+                            <TextField
+                              required
+                              fullWidth
+                              id="brand"
+                              label="Brand Name"
+                              name="brand"
+                              autoComplete="brand"
+                            />
+                          </Grid>
+                          
+                        </Grid>
+                        <Button
+                          type="submit"
+                          //   fullWidth
+                          variant="contained"
+                          sx={{ mt: 3, mb: 2 }}
+                        >
+                          Create
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Modal>
                 </Stack>
               </Stack>
             </Paper>
@@ -347,20 +457,23 @@ export default function ProductManager() {
         </Grid>
         <Grid item xs={10}>
           {view === "CreateProduct" ? (
-            <CreateProduct />
+            <CreateProduct listCategories={categories} changeView = {hanldeChangeView} />
           ) : view === "UpdateProduct" ? (
-            <UpdateProduct product={productUpdate} categories />
+            <UpdateProduct product={productUpdate} listCategories={categories} changeView = {hanldeChangeView} />
           ) : (
             <ListProduct
               showUpdateProduct={handleShowUpdateProduct}
               showUpdateInventory={handleShowUpdateProduct}
               setProductUpdate
+              processLoading={hanldShowOrHideProcessLoading}
             />
           )}
         </Grid>
       </Grid>
-
+      <ToastContainer style={{ width: "fit-content" }} />
       {/* <Footer /> */}
+      <ProcessLoadingModal parentOpen={openProcessLoading} />
+
     </>
   );
 }

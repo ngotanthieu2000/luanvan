@@ -25,7 +25,7 @@ export default function Home() {
     { name: "slide2", src: silde2 },
     { name: "slide3", src: silde3 },
   ];
-
+  
   //data product
   var dataProduct = [
     {

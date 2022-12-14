@@ -3,20 +3,15 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Avatar from "@mui/material/Avatar";
 import Button from "@mui/material/Button";
-import Alert from "@mui/material/Alert";
-import AlertTitle from "@mui/material/AlertTitle";
 import CssBaseline from "@mui/material/CssBaseline";
 import TextField from "@mui/material/TextField";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
-import Link from "@mui/material/Link";
 import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-import instance, { login } from "../../api/auth";
+import { login, postUpdateCartClone } from "../../api/auth";
 import { NavLink, useNavigate } from "react-router-dom";
 const theme = createTheme();
 
@@ -35,6 +30,7 @@ export default function SignIn() {
   };
   const handleSubmit = async (event) => {
     event.preventDefault();
+    var cart = JSON.parse(localStorage.getItem('cart'))
     const data = new FormData(event.currentTarget);
     console.log({
       email: data.get("email"),
@@ -48,10 +44,12 @@ export default function SignIn() {
     });
     // console.log(`Status:::${status} , Element:::${element}`)
     console.log("Res:::", res);
+
     if (res.status === "Error") {
       showErrorToastMessage(res.msg);
     } else {
       await showSuccessToastMessage(res.msg);
+      localStorage.setItem("user", JSON.stringify(res.element));
       localStorage.setItem("name", res.element.name);
       localStorage.setItem("avatar", res.element.avatar ? res.element.avatar : '');
       localStorage.setItem("email", res.element.email);
@@ -59,7 +57,12 @@ export default function SignIn() {
       localStorage.setItem("_id", res.element._id);
       localStorage.setItem("address", res.element.address ? res.element.address : '');
       localStorage.setItem("timeExpired", res.timeExpired);
-      navigate("/");
+      if(cart && cart.products.length >0)
+      {
+        const updateClone = await postUpdateCartClone({userId:res.element._id,listProduct:cart.products})
+        console.log("Update clone cart:",updateClone.element)
+      }
+      navigate("/shop");
     }
   };
 

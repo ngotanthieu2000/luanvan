@@ -10,18 +10,16 @@ import {
   Modal,
   TextField,
 } from "@mui/material";
-export default function UpdateInventory({openUpdateInventory,closeUpdateInventory,product_id}) {
-  console.log(
-    'Update Inventory',
-    openUpdateInventory
-  )
+export default function UpdateInventory({handleUdateInventory,openUpdateInventory,closeUpdateInventory,product_id}) {
   const [qty, setQty] = useState();
+  console.log('Productid inventory:',product_id)
   const handleSubmitUpdateInventory = async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     data.append('_id',product_id)
-    // console.log({_id:data.get('_id'),qty:data.get('quantity')});
+    console.log({_id:data.get('_id'),qty:data.get('quantity')});
     const res = await updateInventory({_id:data.get('_id'),quantity:data.get('quantity')})
+    handleUdateInventory(data.get('quantity'))
     closeUpdateInventory(false)
   };
   return (

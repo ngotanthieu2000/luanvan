@@ -36,7 +36,7 @@ import StatusButton from "./StatusButton";
 import Avatar from "./Avatar";
 import { useLayoutEffect } from "react";
 
-export default function ListProduct({ showUpdateProduct ,processLoading}) {
+export default function ListType({ showUpdateProduct ,processLoading}) {
   let navigate = useNavigate();
   const [openUpdateInventory, setOpenUpdateInventory] = useState(false);
   const [openValidChangeStatus, setOpenValidChangeStatus] = useState(false);
@@ -203,7 +203,7 @@ const handleChangeStatus = async ()=>{
       renderCell:(params)=>{
         return (
           <Typography onClick={()=>{
-            navigate(`/detail-product/${params.row.name}/${params.row._id}`)}
+            navigate(`/detail-product/${params.row.name}/${params.row._id}`,{state:{product:params.row,productId:params.row._id}} ,{target:"_blank"})}
           }>{params.row.name}</Typography>
         )
       },

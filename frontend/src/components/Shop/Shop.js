@@ -1,9 +1,12 @@
 import {
+  Button,
   Divider,
   Grid,
   IconButton,
   Link,
+  Pagination,
   Select,
+  Slider,
   TextField,
   Typography,
 } from "@mui/material";
@@ -32,100 +35,127 @@ import AppsIcon from "@mui/icons-material/Apps";
 import ViewHeadlineIcon from "@mui/icons-material/ViewHeadline";
 import ArrowRightAltIcon from "@mui/icons-material/ArrowRightAlt";
 import ViewListIcon from "@mui/icons-material/ViewList";
-import { getProducts } from "../../api/api_instance";
+import { getBrands, getBrandsByCategories, getCategories, getProductFilterBrand, getProducts } from "../../api/api_instance";
+import Navbar from "../Navbar/Navbar";
+import { getRecommenders } from "../../api/auth";
+import { useNavigate } from "react-router-dom";
 export default function Shop() {
-  const [brand, setBrand] = React.useState({
-    adidas: false,
-    newBalance: false,
-    nike: false,
-  });
-  const { adidas, newBalance, nike } = brand;
-  const handleChangeBrand = (event) => {
-    setBrand({
-      ...brand,
-      [event.target.name]: event.target.checked,
-    });
+  const navigate = useNavigate()
+  const [brand, setBrand] = React.useState([]);
+  const [brandFilter, setBrandFilter] = React.useState([]);
+  const [products,setProducts] = useState()
+  const [categories,setCategories] = useState([])
+  const [categoriesFilter,setCategoriesFilter] = useState([])
+  // recommender
+  const [recommenders,setRecommenders] = useState()
+  async function fetchRecommenders(){
+    const res = await getRecommenders({_id:localStorage.getItem('_id')})
+    if(res.status==='Success'){
+      console.log('res getRecommenders:',res)
+      setRecommenders(res.element.recommenders.map(element=>{
+        if(element.item !== null) return element;
+      }));
+    }
+  }
+  useEffect(() => {
+    if(localStorage.getItem('_id') && localStorage.getItem('_id') !== 'undefined'){
+     fetchRecommenders();
+    }
+  }, []);
+  async function fetchCategories(){
+    const res = await getCategories();
+    console.log("res fetch categories::",res)
+    if(res.status=== "Success"){
+
+      setCategories(res.element.map((element)=>{
+        return {...element, checked:false}
+      }))
+    }
+  }
+  async function fetchBrands(){
+    const res = await getBrands();
+    const temp = {}
+    res.element.map((element)=>{
+      let name = element.name
+      element.checked = false
+      return temp[`${name}`] = false
+    })
+    setBrand(temp)
+    console.log(temp)
+  }
+  async function fetchListProduct(){
+    const res = await getProducts();
+    setProducts(res.element)
+  }
+  useEffect(() => {
+    // fetchBrands();
+    fetchCategories();
+   fetchListProduct()
+  }, []);
+
+  useEffect(() => {
+    var arr = []
+    Object.keys(brand).map((key, index)=>{
+      if(brand[key]){
+        return arr.push(key)
+      }
+    })
+    console.log({arr})
+    setBrandFilter(arr)
+  }, [brand]);
+ async function handleFilterProducts(){
+    console.log({brandFilter:JSON.stringify(brandFilter)})
+    console.log({categoriesFilter:JSON.stringify(categoriesFilter)})
+      const res = await getProductFilterBrand({brandFilter:JSON.stringify(brandFilter),categoriesFilter:JSON.stringify(categoriesFilter),priceFilter:JSON.stringify(priceFilter)})
+      console.log('brand fileter lisproduct:',res)
+      setProducts(res.element)
+ }
+  const handleChangeBrand =async (event) => {
+    setBrand({...brand,[event.target.name]:event.target.checked});
+
   };
-  var relatedProduct = [
-    {
-      name: "Tablet White EliteBook Revolve 810 G2",
-      price: 9000,
-      oldPrice: 2299,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img2.jpg",
-      category: "Speakers",
-    },
-    {
-      name: "Purple Solo 2 Wireless",
-      price: 685,
-      oldPrice: 2299,
-      rated: 4,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img3.jpg",
-      category: "Speakers",
-    },
-    {
-      name: "Smartphone 6S 32GB LTE",
-      price: 499,
-      oldPrice: 2299,
-      rated: 2,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img4.jpg",
-      category: "Smartphone",
-    },
-    {
-      name: "Widescreen NX Mini F1 SMART NX",
-      price: 699,
-      oldPrice: 2299,
-      rated: 5,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img5.jpg",
-      category: "Camera",
-    },
-    {
-      name: "Camera C430W 4k Waterproof",
-      price: 799,
-      oldPrice: 2299,
-      rated: 5,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img8.jpg",
-      category: "Camera",
-    },
-    {
-      name: "Camera C430W 4k Waterproof",
-      price: 799,
-      oldPrice: 2299,
-      rated: 4,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img8.jpg",
-      category: "Camera",
-    },
-  ];
-  const categories = [
-    {
-      name: "Cameras & Photography",
-      quantityChild: 1,
-      children: [{ name: "Cameras", quantity: 23 }],
-    },
-    {
-      name: "Computer Compounents",
-      quantityChild: 1,
-      children: [{ name: "Computer Cases", quantity: 11 }],
-    },
-    {
-      name: "Gadgets",
-      quantityChild: 2,
-      children: [
-        { name: "Smartwatches", quantity: 9 },
-        { name: "Wearables", quantity: 7 },
-      ],
-    },
-    {
-      name: "Home Entertaiment",
-      quantityChild: 1,
-      children: [{ name: "Tvs", quantity: 14 }],
-    },
-  ];
+  const handleCheckCategoriesFilter = async (event)=> {
+    setCategories(categories.map((element)=>{
+      return element.name == event.target.name
+      ? { ...element, checked: event.target.checked }
+      : element;
+    }))
+    
+  };
+  async function fetchBrandsByCategories(){
+    var arr = []
+    categories.map((element, index)=>{
+      if(element.checked){
+        return arr.push(element.name)
+      }
+    })
+    setCategoriesFilter(arr)
+    console.log("arr fetchBrandsByCategories:",arr)
+    const res = await getBrandsByCategories({categories:JSON.stringify(arr)})
+    console.log("res fetchBrandsByCategories:",res)
+    if(res.status==="Success"){
+    const temp = {}
+      res.element.map((element)=>{
+        let name = element.name
+        element.checked = false
+        return temp[`${name}`] = false
+      })
+      setBrand(temp)
+    }
+    else{
+      setBrand([])
+    }
+  }
+
+  async function fetchProductByCategories(){
+    console.log('fetchProductByCategories:',res)
+    const res = await getProductFilterBrand({brandFilter:JSON.stringify(brandFilter),categoriesFilter:JSON.stringify(categoriesFilter)})
+    console.log('fetchProductByCategories:',res)
+    setProducts(res.element)
+  }
+  useEffect(() => {
+    fetchBrandsByCategories()
+  }, [categories]);
 
   var dataRecommedation = {
     name: "Purple Solo 2 Wireless",
@@ -160,14 +190,8 @@ export default function Shop() {
     setEndCount(startCount+countShow);
   }, [countShow]);
 
-  const [products,setProducts] = useState([])
-  async function fetchListProduct(){
-    const res = await getProducts();
-    setProducts(res.element)
-  }
-  useEffect(() => {
-   fetchListProduct()
-  }, []);
+  
+  
   const listProducts = [
     {
       name: "Purple Solo 2 Wireless Purple Solo 2 Wireless Purple Solo 2 Wireless",
@@ -590,10 +614,17 @@ export default function Shop() {
       category: "Speakers",
     },
   ];
-  
+  const [priceFilter, setPriceFilter] = React.useState([0, 0]);
+
+  const handleChange = (event, newValue) => {
+    setPriceFilter(newValue);
+    console.log({newValue})
+  };
+  const [numPageReview, setNumPageReview] = useState(1);
+
   return (
     <>
-      <Header />
+      <Navbar />
       <Stack
         direction={"row"}
         paddingX={"11%"}
@@ -641,15 +672,20 @@ export default function Shop() {
                         id="panel1a-header"
                       >
                         <Typography>
-                          {element.name} ({element.quantityChild})
+                          {element.name}
                         </Typography>
                       </AccordionSummary>
-                      {element.children.map((elementChild) => {
+                      {element.types.map((elementChild) => {
                         return (
                           <AccordionDetails>
-                            <Link href="#" underline="none">
-                              {elementChild.name} ({elementChild.quantity})
-                            </Link>
+                            <Typography underline="none" sx={{
+                              color:"blue",
+                              cursor:'pointer'
+                            }}
+                            onClick={()=>{navigate(`/collection/${element.name}/${elementChild.name}`,{state:{categories:element.name,type:elementChild.name}})}}
+                            >
+                              {elementChild.name}
+                            </Typography>
                           </AccordionDetails>
                         );
                       })}
@@ -661,44 +697,46 @@ export default function Shop() {
             <Stack direction="column" spacing={1}>
               <Typography variant="subtitle1">Filters</Typography>
               <Divider />
+              <Box >
+                <Typography variant="subtitle2">Price</Typography>
+                <Slider
+                  getAriaLabel={() => 'Temperature range'}
+                  value={priceFilter}
+                  min={0}
+                  max={5000}
+                  step={100}
+                  onChange={handleChange}
+                  valueLabelDisplay="on"
+                  // getAriaValueText={valuetext}
+                />
+              </Box>
               <Box>
                 <FormControl
                   sx={{ m: 1 }}
                   component="fieldset"
                   variant="standard"
                 >
-                  <FormLabel component="legend">Brand</FormLabel>
+                  <FormLabel component="legend">Categories</FormLabel>
                   <FormGroup>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={adidas}
-                          onChange={handleChangeBrand}
-                          name="adidas"
-                        />
-                      }
-                      label="Adidas"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={newBalance}
-                          onChange={handleChangeBrand}
-                          name="newBalance"
-                        />
-                      }
-                      label="New Balance"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={nike}
-                          onChange={handleChangeBrand}
-                          name="nike"
-                        />
-                      }
-                      label="Nike"
-                    />
+                    {categories  ? 
+                    (
+                      categories.map((element, index)=>{
+                        return (
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={element.checked}
+                                onChange={handleCheckCategoriesFilter}
+                                name={element.name}
+                              />
+                            }
+                            label={element.name}
+                          />
+                        )
+                      })
+                    ) : undefined
+                  } 
+                    
                   </FormGroup>
                   {/* <FormHelperText>Be careful</FormHelperText> */}
                 </FormControl>
@@ -712,205 +750,110 @@ export default function Shop() {
                 >
                   <FormLabel component="legend">Brand</FormLabel>
                   <FormGroup>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={adidas}
-                          onChange={handleChangeBrand}
-                          name="adidas"
-                        />
-                      }
-                      label="Adidas"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={newBalance}
-                          onChange={handleChangeBrand}
-                          name="newBalance"
-                        />
-                      }
-                      label="New Balance"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={nike}
-                          onChange={handleChangeBrand}
-                          name="nike"
-                        />
-                      }
-                      label="Nike"
-                    />
+                    {brand  ? 
+                    (
+                      Object.keys(brand).map((key, index)=>{
+                        return (
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={brand[key]}
+                                onChange={handleChangeBrand}
+                                name={key}
+                              />
+                            }
+                            label={key}
+                          />
+                        )
+                      })
+                    ) : undefined
+                  } 
+                    
                   </FormGroup>
                   {/* <FormHelperText>Be careful</FormHelperText> */}
                 </FormControl>
               </Box>
+              <Divider />
+              <Button variant="outline" 
+              onClick={()=>{handleFilterProducts()}}
+              >Filters</Button>
+
             </Stack>
           </Stack>
         </Grid>
 
         <Grid item md={8}>
+          {
+            recommenders && recommenders.length > 0 ? 
+            (
+              <Stack direction="column" width={"100%"} spacing={2}>
+                <Stack direction="row" justifyContent={"space-between"}>
+                  <Typography variant="h5">Recommended Products</Typography>
+                  {/* <Box>
+                    <IconButton sx={{ padding: "0px !important" }}>
+                      <NavigateBeforeIcon />
+                    </IconButton>
+                    <IconButton sx={{ padding: "0px !important" }}>
+                      <NavigateNextIcon />
+                    </IconButton>
+                  </Box> */}
+                  </Stack>
+                  <Divider />
+                  <Grid
+                    container
+                    spacing={1}
+                    wrap={"nowrap"}
+                    sx={{
+                      whiteSpace: "nowrap",
+                      overflowX: "auto",
+                      // scrollBehavior: "smooth",
+                    }}
+                  >
+                    {
+                    recommenders?.map((element)=>{
+                      if(element){
+                          return (
+                          <Grid item md={2.4}>
+                            <CardProduct data={element.item} />
+                          </Grid>
+                          )
+                      }
+                    })
+                    }
+                  </Grid>
+              </Stack>
+            ):
+            undefined
+          }
           <Stack direction="column" width={"100%"} spacing={2}>
-            <Stack direction="row" justifyContent={"space-between"}>
-              <Typography variant="h5">Recommended Products</Typography>
-              <Box>
-                <IconButton sx={{ padding: "0px !important" }}>
-                  <NavigateBeforeIcon />
-                </IconButton>
-                <IconButton sx={{ padding: "0px !important" }}>
-                  <NavigateNextIcon />
-                </IconButton>
-              </Box>
-            </Stack>
-            <Divider />
-            <Grid
-              container
-              spacing={1}
-              wrap={"nowrap"}
-              sx={{
-                whiteSpace: "nowrap",
-                overflowX: "auto",
-                // scrollBehavior: "smooth",
-              }}
-            >
-              <Grid item md={2.4}>
-                <CardProduct data={dataRecommedation} />
-              </Grid>
-              <Grid item md={2.4}>
-                <CardProduct data={dataRecommedation} />
-              </Grid>
-              <Grid item md={2.4}>
-                <CardProduct data={dataRecommedation} />
-              </Grid>
-              <Grid item md={2.4}>
-                <CardProduct data={dataRecommedation} />
-              </Grid>
-              <Grid item md={2.4}>
-                <CardProduct data={dataRecommedation} />
-              </Grid>
-            </Grid>
-            <Divider />
             <Stack direction={"row"} justifyContent="space-between">
               <Typography variant="h5">Shop</Typography>
-              <Typography variant="subtitle1">
-                Show 1-25 of 56 result
-              </Typography>
             </Stack>
-            <Stack
-              direction={"row"}
-              justifyContent="space-between"
-              height={50}
-              alignItems="center"
-            >
-              <ToggleButtonGroup
-                value={alignment}
-                exclusive
-                onChange={handleAlignment}
-                aria-label="text alignment"
-              >
-                <ToggleButton value="grid" aria-label="left aligned" onClick={()=>{console.log("List Products:",products)}}>
-                  <AppsIcon />
-                </ToggleButton>
-                <ToggleButton value="headline" aria-label="centered">
-                  <ViewHeadlineIcon />
-                </ToggleButton>
-                <ToggleButton value="list" aria-label="right aligned">
-                  <ViewListIcon />
-                </ToggleButton>
-              </ToggleButtonGroup>
-              <Box maxHeight={"100%"}>
-                <FormControl
-                  sx={{ m: 1, minWidth: 120, maxHeight: 50 }}
-                  size="small"
-                >
-                  <Select
-                    value={sort}
-                    displayEmpty
-                    inputProps={{ "aria-label": "Without label" }}
-                    onChange={handleChangeSort}
-                    sx={{
-                      borderRadius: "50px !important",
-                    }}
-                  >
-                    <MenuItem value="">
-                     Default sorting
-                    </MenuItem>
-                    <MenuItem value={"populatity"}>Sort by populatity</MenuItem>
-                    <MenuItem value={"rating"}>Sort by average rating</MenuItem>
-                    <MenuItem value={"lates"}>Sort by lates</MenuItem>
-                    <MenuItem value={"priceUp"}>
-                      Sort by price:low to hight
-                    </MenuItem>
-                    <MenuItem value={"priceDown"}>
-                      Sort by price:hight to low
-                    </MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl
-                  sx={{ m: 1, minWidth: 120, maxHeight: 50 }}
-                  size="small"
-                >
-                  <Select
-                    value={show}
-                    onChange={handleChangeShow}
-                    displayEmpty
-                    inputProps={{ "aria-label": "Without label" }}
-                    sx={{
-                      borderRadius: "50px !important",
-                    }}
-                  >
-                    <MenuItem value={20}>
-                      Show 20
-                    </MenuItem>
-                    <MenuItem value={40}>Show 40</MenuItem>
-                    <MenuItem value={"all"}>Show All</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box display="flex" flexDirection={"row"} alignItems="center">
-                <TextField
-                  type="number"
-                  size="small"
-                  InputProps={{
-                    inputProps: { 
-                        max: 100, min: 1 
-                    }
-                  }}
-                  onInput = {(e) =>{
-                    e.target.value = Math.max(0, parseInt(e.target.value) ).toString().slice(0,12)
-                  }}
-                  sx={{
-                    width: 80,
-                    borderRadius: "50px !important",
-                    "& .MuiOutlinedInput-root": {
-                      "& fieldset": {
-                        borderRadius: `90px`,
-                      },
-                    },
-                  }}
-                />
-                <Typography>of {numberPage}</Typography>
-                <IconButton>
-                  <ArrowRightAltIcon />
-                </IconButton>
-              </Box>
-            </Stack>
-            <Divider />
-            <Grid container spacing={1} rowGap={2}>
-              {products.splice(startCount,endCount).map((element)=>{
+            <Grid container spacing={1} rowGap={2} justifyContent='center'>
+              {products && products.length > 0 ? 
+              // products.splice(startCount,endCount).map((element)=>{
+                products.slice(10*(numPageReview-1),10*numPageReview).map((element)=>{
                 return (
                   <Grid item md={2.4}>
                     <CardProduct data={element} />
                   </Grid>
                 )
-              })}
+              }):"Not found"}
             </Grid>
+            <Box  sx={{ display: "flex", justifyContent: "center" }}>
+                    <Pagination
+                      count={Math.ceil(products?.length / 10)}
+                      value={numPageReview}
+                      onChange={(event, value) => {
+                        setNumPageReview(value);
+                        console.log({value})
+                      }}
+                    />
+                  </Box>
           </Stack>
         </Grid>
       </Grid>
 
-      <RelatedProduct data={relatedProduct} />
       <Footer />
     </>
   );

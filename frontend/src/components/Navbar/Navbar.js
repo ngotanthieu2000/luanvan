@@ -1,12 +1,20 @@
 import React from "react";
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 import Stack from "@mui/material/Stack";
-import { NavLink,useNavigate  } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import PermIdentityIcon from "@mui/icons-material/PermIdentity";
-import { Button, Box, Grid ,IconButton,Tooltip,Menu,MenuItem} from "@mui/material";
+import {
+  Button,
+  Box,
+  Grid,
+  IconButton,
+  Tooltip,
+  Menu,
+  MenuItem,
+} from "@mui/material";
 import Paper from "@mui/material/Paper";
 import InputBase from "@mui/material/InputBase";
 import Divider from "@mui/material/Divider";
@@ -23,66 +31,80 @@ import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import Link from "@mui/material/Link";
 import Avatar from "@mui/material/Avatar";
 import { getCart } from "../../api/auth";
-export default function Navbar({updateCart}) {
+export default function Navbar({ updateCart }) {
   const [state, setState] = useState({
     top: false,
     left: false,
     bottom: false,
     right: false,
   });
-  let navigate = useNavigate()
-  const [cart,setCart] = useState();
-  const [totalCart,setTotalCart] = useState();
+  let navigate = useNavigate();
+  const [cart, setCart] = useState();
+  const [totalCart, setTotalCart] = useState();
+  function abbreviateNumber(value) {
+    var newValue = value;
+    if (value >= 1000) {
+        var suffixes = ["", "k", "m", "b","t"];
+        var suffixNum = Math.floor( (""+value).length/3 );
+        var shortValue = '';
+        for (var precision = 2; precision >= 1; precision--) {
+            shortValue = parseFloat( (suffixNum != 0 ? (value / Math.pow(1000,suffixNum) ) : value).toPrecision(precision));
+            var dotLessShortValue = (shortValue + '').replace(/[^a-zA-Z 0-9]+/g,'');
+            if (dotLessShortValue.length <= 2) { break; }
+        }
+        if (shortValue % 1 != 0)  shortValue = shortValue.toFixed(1);
+        newValue = shortValue+suffixes[suffixNum];
+    }
+    return newValue;
+  }
+// update cart
   useEffect(() => {
-    if(updateCart)
-    {
-      console.log("updateCart:::",updateCart)
-      setCart(updateCart)
-      localStorage.setItem('cart',JSON.stringify(updateCart))
+    if (updateCart) {
+      console.log("updateCart:::", updateCart);
+      setCart(updateCart);
+      localStorage.setItem("cart", JSON.stringify(updateCart));
     }
   }, [updateCart]);
-  async function fetchDataCart(){
-    const flag = localStorage.getItem("cart")
-    var data 
-    if(localStorage.getItem("_id")){
-      var res = await getCart({userId:localStorage.getItem("_id")})
+
+  // fc fetch data cart 
+  async function fetchDataCart() {
+    const flag = localStorage.getItem("cart");
+    var data;
+    if (localStorage.getItem("_id")) {
+      var res = await getCart({ userId: localStorage.getItem("_id") });
       // console.log("Res getCart:",res)
-      data=res.element
-    }
-    else if(flag && flag !== 'undefined'){
-      data= JSON.parse(localStorage.getItem("cart"))
+      data = res.element;
+    } else if (flag && flag !== "undefined") {
+      data = JSON.parse(localStorage.getItem("cart"));
       setCart(cart);
-    }
-    else{
+    } else {
       data = {
-        user:'id_clone',
-        status:'saved',
-        products:[]
-      }
-      
+        user: "id_clone",
+        status: "saved",
+        products: [],
+      };
     }
-    setCart( prev => Object.assign({},data))
-    localStorage.setItem('cart',JSON.stringify(data))
-    updateTotalPriceCart(data)
+    setCart((prev) => Object.assign({}, data));
+    localStorage.setItem("cart", JSON.stringify(data));
+    updateTotalPriceCart(data);
   }
   useEffect(() => {
     fetchDataCart();
-    
   }, []);
-  
+
   // update total price cart
-  async function updateTotalPriceCart(data){
+  async function updateTotalPriceCart(data) {
     var total = 0;
-    if(data && data.products.length > 0){
-      data.products.map((element)=>{
-        total += element.item.price * element.qty
-      })
+    if (data && data.products.length > 0) {
+      data.products.map((element) => {
+        total += element.item.price * element.qty;
+      });
     }
-    setTotalCart(total)
+    setTotalCart(total);
   }
   useEffect(() => {
     updateTotalPriceCart(cart);
-    console.log('Total::',totalCart)
+    // console.log("Total::", totalCart);
   }, [cart]);
   const [anchorElNav, setAnchorElNav] = React.useState(null);
   const [anchorElUser, setAnchorElUser] = React.useState(null);
@@ -101,30 +123,35 @@ export default function Navbar({updateCart}) {
   const handleCloseUserMenu = () => {
     setAnchorElUser(null);
   };
-  const handleToCart =()=>{
-    return navigate('/cart')
-  }
-  const handleToProfile =()=>{
-    return navigate('/profile')
-  }
-  const handleLogout =()=>{
-    localStorage.removeItem('name');
-    localStorage.removeItem('avatar');
-    localStorage.removeItem('email');
-    localStorage.removeItem('phone');
-    localStorage.removeItem('address');
-    localStorage.removeItem('_id');
-    localStorage.removeItem('timeExpired');
-    localStorage.removeItem('cart');
-    setAvatar(undefined)
-    setName(undefined)
-    fetchDataCart()
-    navigate('/')
-  }
-  const [name,setName] = useState(localStorage.getItem("name") || undefined);
-  const [avatar,setAvatar] = useState(localStorage.getItem("avatar") === 'unknown' ? undefined : localStorage.getItem("avatar"));
+  const handleToCart = () => {
+    return navigate("/cart",{state:{cart,totalCart}});
+  };
+  const handleToProfile = () => {
+    return navigate("/profile");
+  };
+  const handleLogout = () => {
+    localStorage.removeItem("name");
+    localStorage.removeItem("avatar");
+    localStorage.removeItem("email");
+    localStorage.removeItem("phone");
+    localStorage.removeItem("address");
+    localStorage.removeItem("_id");
+    localStorage.removeItem("timeExpired");
+    localStorage.removeItem("cart");
+    localStorage.removeItem("user");
+    setAvatar(undefined);
+    setName(undefined);
+    fetchDataCart();
+    window.location.reload();
+  };
+  const [name, setName] = useState(localStorage.getItem("name") || undefined);
+  const [avatar, setAvatar] = useState(
+    localStorage.getItem("avatar") === "unknown"
+      ? undefined
+      : localStorage.getItem("avatar")
+  );
   useEffect(() => {
-    setAvatar(localStorage.getItem("avatar"))
+    setAvatar(localStorage.getItem("avatar"));
   }, [localStorage.getItem("avatar")]);
   const StyledBadge = styled(Badge)(({ theme }) => ({
     "& .MuiBadge-badge": {
@@ -171,8 +198,14 @@ export default function Navbar({updateCart}) {
       </List>
     </Box>
   );
-
-  return (
+    const [search,setSearch] = useState();
+  const handleSearch = (event)=>{
+    event.preventDefault();
+    if(search){
+      navigate(`/search/${search}`)
+    }
+  }
+return (
     <div>
       <Stack direction="row" justifyContent="space-between" mt={0}>
         <Typography
@@ -186,29 +219,29 @@ export default function Navbar({updateCart}) {
         </Typography>
         <Stack flex={1} direction="row" justifyContent="center">
           <Box direction="row" bgcolor="#ffffff">
-            <Button
+            {/* <Button
               variant="text"
               sx={{ textTransform: "capitalize" }}
               startIcon={<LocationOnIcon />}
             >
               Store Locator
-            </Button>
+            </Button> */}
           </Box>
-          <Divider sx={{ height: 28, m: 0.5 }} orientation="vertical" />
+          {/* <Divider sx={{ height: 28, m: 0.5 }} orientation="vertical" /> */}
           <Box direction="row" bgcolor="#ffffff">
-            <Button
+            {/* <Button
               variant="text"
               sx={{ textTransform: "capitalize" }}
               startIcon={<LocalShippingIcon />}
             >
               Track Your Order
-            </Button>
+            </Button> */}
           </Box>
-          <Divider sx={{ height: 28, m: 0.5 }} orientation="vertical" />
+          {/* <Divider sx={{ height: 28, m: 0.5 }} orientation="vertical" /> */}
           <Box direction="row" bgcolor="#ffffff" display={"inline-flex"}>
             {name ? (
               <>
-                <Button variant="text" sx={{ textTransform: "capitalize" }}>
+                <Button variant="text" sx={{ textTransform: "capitalize" }} onClick={()=>{navigate('/profile')}}>
                   {name}
                 </Button>
                 <Box sx={{ flexGrow: 0 }}>
@@ -219,37 +252,37 @@ export default function Navbar({updateCart}) {
                         src={
                           avatar
                             ? `http://localhost:5000/static/public/users/${avatar}`
-                            : require('../../public/image/avatardefault.png')
+                            : require("../../public/image/avatardefault.png")
                         }
                       />
                     </IconButton>
                   </Tooltip>
                   <Menu
-              sx={{ mt: '25px' }}
-              id="menu-appbar"
-              anchorEl={anchorElUser}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              open={Boolean(anchorElUser)}
-              onClose={handleCloseUserMenu}
-            >
-              <MenuItem key={'Profile'} onClick={handleToProfile}>
-                  <Typography textAlign="center">Profile</Typography>
-              </MenuItem>
-              <MenuItem key={"Cart"} onClick={handleToCart}>
-                <Typography textAlign="center">Cart</Typography>
-              </MenuItem>
-              <MenuItem key={'Logout'} onClick={handleLogout}>
-                <Typography textAlign="center">Logout</Typography>
-              </MenuItem>
-            </Menu>
+                    sx={{ mt: "25px" }}
+                    id="menu-appbar"
+                    anchorEl={anchorElUser}
+                    anchorOrigin={{
+                      vertical: "top",
+                      horizontal: "right",
+                    }}
+                    keepMounted
+                    transformOrigin={{
+                      vertical: "top",
+                      horizontal: "right",
+                    }}
+                    open={Boolean(anchorElUser)}
+                    onClose={handleCloseUserMenu}
+                  >
+                    <MenuItem key={"Profile"} onClick={handleToProfile}>
+                      <Typography textAlign="center">Profile</Typography>
+                    </MenuItem>
+                    <MenuItem key={"Cart"} onClick={handleToCart}>
+                      <Typography textAlign="center">Cart</Typography>
+                    </MenuItem>
+                    <MenuItem key={"Logout"} onClick={handleLogout}>
+                      <Typography textAlign="center">Logout</Typography>
+                    </MenuItem>
+                  </Menu>
                 </Box>
               </>
             ) : (
@@ -299,7 +332,9 @@ export default function Navbar({updateCart}) {
                   variant="h3"
                   align="center"
                   sx={{ fontFamily: "Garamond" }}
-                  onClick={()=>{return navigate('/')}}
+                  onClick={() => {
+                    return navigate("/shop");
+                  }}
                 >
                   Electro Shop
                 </Typography>
@@ -318,9 +353,6 @@ export default function Navbar({updateCart}) {
               <IconButton sx={{ p: "10px" }} aria-label="menu">
                 {["left"].map((anchor) => (
                   <React.Fragment key={anchor}>
-                    <Button onClick={toggleDrawer(anchor, true)}>
-                      <MenuIcon />
-                    </Button>
                     <Drawer
                       anchor={anchor}
                       open={state[anchor]}
@@ -335,23 +367,35 @@ export default function Navbar({updateCart}) {
                 sx={{ ml: 1, flex: 1 }}
                 placeholder="Search for Products"
                 inputProps={{ "aria-label": "search for products" }}
+                value = {search}
+                onChange = {(event)=>{setSearch(event.target.value)}}
+                onKeyPress={event => {
+                  if (event.key === 'Enter') {
+                    handleSearch(event)  
+                  }
+                }}
               />
-              <IconButton type="button" sx={{ p: "10px" }} aria-label="search">
+              <IconButton type="button" sx={{ p: "10px" }} aria-label="search" onClick={(event)=>{handleSearch(event)}}>
                 <SearchIcon />
               </IconButton>
             </Paper>
             <Stack direction="row" justifyContent="space-between" ml={10}>
               <Box>
-                <IconButton aria-label="cart" 
-                // onClick={()=>{navigate('/cart')}}
-                onClick={()=>{console.log("Cart::",cart)}}
-                
+                <IconButton
+                  aria-label="cart"
+                  // onClick={()=>{navigate('/cart')}}
+                  onClick={
+                    handleToCart
+                  }
                 >
-                  <StyledBadge badgeContent={cart?.products?.length} color="secondary">
+                  <StyledBadge
+                    badgeContent={cart?.products?.length}
+                    color="secondary"
+                  >
                     <ShoppingCartIcon />
                   </StyledBadge>
                   <Typography ml={3} mt={"auto"}>
-                    {totalCart}
+                    {abbreviateNumber(totalCart)}
                   </Typography>
                 </IconButton>
               </Box>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Stack } from "@mui/system";
@@ -20,23 +20,84 @@ import {
   Select,
   MenuItem,
   IconButton,
+  Autocomplete,
 } from "@mui/material";
-export default function UpdateProduct({ product, categories }) {
+import { getBrandsByCategories } from "../../api/api_instance";
+import { updateProduct } from "../../api/auth";
+import ProcessLoadingModal from "./ProcessLoadingModal";
+export default function UpdateProduct({ product, listCategories,changeView }) {
+  const [key, setKey] = useState("");
+  const [value, setValue] = useState("");
   const [isType, setIsType] = useState("");
+  const [attributes, setAttributes] = useState([]);
   const [type, setType] = useState();
   const [isCategories, setIsCategories] = useState(0);
+  const [brand, setBrand] = useState([]);
+  async function fetchDataBrand(cate){
+    const { element } = await getBrandsByCategories({categories:JSON.stringify(cate)});
+      console.log("brand_fetch", element);
+      setBrand(element);
+  }
+  useLayoutEffect(() => {
+    setIsType(product.type)
+    let index;
+    for(let i = 0;i<listCategories.length;i++){
+      if(listCategories[i].name === product.categories){
+        index = i;
+        break;
+      }else{
+        continue;
+      }
+    }
+    setIsCategories(index)
+    setType(listCategories[index].types)
+    fetchDataBrand(listCategories[index].name)
+    setAttributes(product.attributes)
+  }, [product,listCategories])
 
+  const handleAddAtribute = async (event) => {
+    event.preventDefault();
+    let item = { key, value };
+    if (item?.key && item?.value) {
+      setAttributes((current) => [...current, item]);
+    }
+  };
   const handleChangeType = (event) => {
     setIsType(event.target.value);
   };
   const handleChangeCategories = (event) => {
-    let temp = categories[event.target.value].types;
+    let temp = listCategories[event.target.value].types;
     setIsCategories(event.target.value);
     setType(temp);
   };
+  const [openProcessLoading,setOpenProcessLoading] = useState(false);
+
   //submit
   const handleUpdateProduct = async (event) => {
     event.preventDefault();
+    setOpenProcessLoading(true)
+    const data = new FormData(event.currentTarget);
+    data.append("attributes", JSON.stringify(attributes));
+    data.append("_id", product._id);
+    data.append("categories", listCategories[isCategories]?.name);
+    console.log({
+      _id: data.get("_id"),
+      name: data.get("name"),
+      sku: data.get("sku"),
+      type: data.get("type"),
+      categories: data.get("categories"),
+      price: data.get("price"),
+      brand: data.get("brand"),
+      description: data.get("description"),
+      attributes: data.get("attributes"),
+    });
+    var res = await updateProduct(data);
+    console.log("res updateproduct:",res)
+    if(res.status==="Success"){
+      setOpenProcessLoading(false)
+      changeView('ListProduct');
+    }
+
   };
   return (
     <Box
@@ -76,7 +137,7 @@ export default function UpdateProduct({ product, categories }) {
             autoComplete="sku"
           />
         </Grid>
-        <Grid item xs={12} sm={3}>
+        <Grid item xs={12} sm={6}>
           <TextField
             required
             fullWidth
@@ -87,7 +148,7 @@ export default function UpdateProduct({ product, categories }) {
             defaultValue={product?.price}
           />
         </Grid>
-        <Grid item xs={12} sm={3}>
+        {/* <Grid item xs={12} sm={3}>
           <TextField
             required
             fullWidth
@@ -97,7 +158,7 @@ export default function UpdateProduct({ product, categories }) {
             autoComplete="sale"
             defaultValue={product?.sale}
           />
-        </Grid>
+        </Grid> */}
         <Grid item xs={6} sm={4}>
           <FormControl fullWidth>
             <InputLabel id="select_type">Type</InputLabel>
@@ -133,8 +194,8 @@ export default function UpdateProduct({ product, categories }) {
               // name="Categories"
               onChange={handleChangeCategories}
             >
-              {categories && categories.length > 0 ? (
-                categories.map((element, index) => {
+              {listCategories && listCategories.length > 0 ? (
+                listCategories.map((element, index) => {
                   return <MenuItem value={index}>{element.name}</MenuItem>;
                 })
               ) : (
@@ -144,14 +205,13 @@ export default function UpdateProduct({ product, categories }) {
           </FormControl>
         </Grid>
         <Grid item xs={6} sm={4}>
-          <TextField
-            autoComplete="brand"
-            name="brand"
-            fullWidth
-            id="brand"
-            label="Brand"
-            autoFocus
-            defaultValue={product?.brand}
+          <Autocomplete
+              id="auto_brand"
+              name="auto_brand"
+              freeSolo
+              defaultValue={product?.brand}
+              options={brand.map((option) => option.name)}
+              renderInput={(params) => <TextField name="brand" id="brand" {...params} label="Brand" />}
           />
         </Grid>
         <Grid item xs={12} sm={12}>
@@ -168,19 +228,6 @@ export default function UpdateProduct({ product, categories }) {
             multiline
           />
         </Grid>
-        <Grid item xs={12} sm={12}>
-          <TextField
-            autoComplete="detail"
-            name="detail"
-            required
-            fullWidth
-            id="detail"
-            label="Detain"
-            defaultValue={product?.detail}
-            autoFocus
-            multiline
-          />
-        </Grid>
         <Grid item xs={12} spacing={2}>
           <Typography variant="h6">Attributes</Typography>
           <Stack direction="row" justifyContent={"center"} spacing={2}>
@@ -190,8 +237,9 @@ export default function UpdateProduct({ product, categories }) {
               fullWidth
               id="key"
               label="Key"
+              value={key}
               onChange={(e) => {
-                // setKey(e.target.value);
+                setKey(e.target.value);
               }}
               autoFocus
             />
@@ -200,10 +248,11 @@ export default function UpdateProduct({ product, categories }) {
               name="value"
               id="value"
               fullWidth
+              value={value}
               label="Value"
               autoFocus
               onChange={(e) => {
-                // setValue(e.target.value);
+                setValue(e.target.value);
               }}
               multiline
             />
@@ -211,9 +260,9 @@ export default function UpdateProduct({ product, categories }) {
               color="primary"
               aria-label="add an alarm"
               onClick={(e) => {
-                // handleAddAtribute(e);
-                // setKey("");
-                // setValue("");
+                handleAddAtribute(e);
+                setKey("");
+                setValue("");
               }}
             >
               <AddIcon />
@@ -233,7 +282,7 @@ export default function UpdateProduct({ product, categories }) {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {product.attributes?.map((row, index) => (
+                  {attributes?.map((row, index) => (
                     <TableRow
                       key={index}
                       sx={{
@@ -250,18 +299,18 @@ export default function UpdateProduct({ product, categories }) {
                           color="primary"
                           aria-label="add an alarm"
                           onClick={(e) => {
-                            // let att = {
-                            //   key: row[index]?.key,
-                            //   value: row[index]?.value,
-                            // };
-                            // setAttributes(
-                            //   attributes.filter((temp) => {
-                            //     return (
-                            //       temp.key !== attributes[index]?.key &&
-                            //       temp.value !== attributes[index]?.value
-                            //     );
-                            //   })
-                            // );
+                            let att = {
+                              key: row[index]?.key,
+                              value: row[index]?.value,
+                            };
+                            setAttributes(
+                              attributes.filter((temp) => {
+                                return (
+                                  temp.key !== attributes[index]?.key &&
+                                  temp.value !== attributes[index]?.value
+                                );
+                              })
+                            );
                           }}
                         >
                           <DeleteIcon />
@@ -276,7 +325,7 @@ export default function UpdateProduct({ product, categories }) {
         ) : (
           undefined
         )}
-        <Grid item xs={12} sm={12}>
+        {/* <Grid item xs={12} sm={12}>
           <TextField
             autoComplete="attachments"
             name="attachments"
@@ -289,7 +338,7 @@ export default function UpdateProduct({ product, categories }) {
               multiple: true,
             }}
           />
-        </Grid>
+        </Grid> */}
       </Grid>
       <Button
         type="submit"
@@ -302,6 +351,7 @@ export default function UpdateProduct({ product, categories }) {
       >
         Update
       </Button>
+      <ProcessLoadingModal parentOpen={openProcessLoading} />
     </Box>
   );
 }

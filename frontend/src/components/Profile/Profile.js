@@ -7,18 +7,31 @@ import {
   Button,
   Modal,
   Typography,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  TableContainer,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
 } from "@mui/material";
-import { useNavigate  } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Box, Stack } from "@mui/system";
 import React, { useState, useEffect } from "react";
 import Footer from "../Footer/Footer";
 import Header from "../Header/Header";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import InventoryIcon from "@mui/icons-material/Inventory";
-import AddBusinessIcon from "@mui/icons-material/AddBusiness";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import PeopleIcon from "@mui/icons-material/People";
 import { updateUser, refreshToken, changeAvatar } from "../../api/auth.js";
+import { DatePicker, DesktopDatePicker } from "@mui/x-date-pickers";
+import Navbar from "../Navbar/Navbar";
 export default function Profile() {
-  let navigate = useNavigate()
+  let navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
   const [isModify, setIsModify] = useState(false);
   const handleOpen = () => setOpen(true);
@@ -31,14 +44,28 @@ export default function Profile() {
   const [userId, setUserId] = useState(
     localStorage.getItem("_id") || undefined
   );
-  const [user, setUser] = useState({
-    email: localStorage.getItem("email"),
-    phone: localStorage.getItem("phone"),
-    address: localStorage.getItem("address")
-      ? localStorage.getItem("address")
-      : " Unknown",
-    name: localStorage.getItem("name"),
-  });
+  //birdth day
+  const [birthday, setBirthday] = useState(
+    JSON.parse(localStorage.getItem("user")).birthday || "2000-01-01"
+  );
+
+  const handleChangeBirthday = (newValue) => {
+    setBirthday(newValue);
+  };
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
+
+  // async function fetchUser(){
+  //   if(localStorage.getItem("user") && localStorage.getItem("user") != 'undefined'){
+  //     setUser(JSON.parse(localStorage.getItem("user")))
+  //   }
+  //   else if(localStorage.getItem("_id" && localStorage.getItem("_id") != 'undefined')){
+  //     const res = await
+  //   }
+  // }
+  useEffect(() => {
+    setAvatar(localStorage.getItem("avatar"));
+  }, [localStorage.getItem("avatar")]);
+
   useEffect(() => {
     setAvatar(localStorage.getItem("avatar"));
   }, [localStorage.getItem("avatar")]);
@@ -67,6 +94,7 @@ export default function Profile() {
   const handleSubmitUpdate = async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    data.append("birthday", birthday);
     console.log({
       name: data.get("name"),
       address: data.get("address"),
@@ -74,11 +102,17 @@ export default function Profile() {
     let body = {
       _id: userId,
       name: data.get("name"),
+      phone: data.get("phone"),
+      gender: data.get("gender"),
+      birthday: data.get("birthday"),
+      email: data.get("email"),
       address: data.get("address"),
     };
+    console.log(body);
+
     const res = await updateUser(body);
     console.log("updateUser:::", res);
-    setUser({...user,name:res.element.name,address:res.element.address})
+    setUser(res.element);
   };
   const handleRefreshToken = async () => {
     const res = await refreshToken();
@@ -86,7 +120,7 @@ export default function Profile() {
   };
   return (
     <>
-      <Header />
+      <Navbar />
       <Grid
         my={5}
         container
@@ -188,7 +222,7 @@ export default function Profile() {
             </Stack>
             <Stack direction={"row"} spacing={4}>
               <Tooltip
-                title="Manager Account"
+                title="Update Profile"
                 onClick={() => {
                   setIsModify(true);
                 }}
@@ -197,11 +231,51 @@ export default function Profile() {
                   <ManageAccountsIcon sx={{ width: 50, height: 50 }} />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Manager Product" onClick={()=>{navigate('/product-manager')}}>
-                <IconButton sx={{ width: 100, height: 100 }} size="large">
-                  <InventoryIcon sx={{ width: 50, height: 50 }} />
-                </IconButton>
-              </Tooltip>
+              {user.role && user.role === "admin" ? (
+                <>
+                  <Tooltip
+                    title="Product Management"
+                    onClick={() => {
+                      navigate("/product-manager");
+                    }}
+                  >
+                    <IconButton sx={{ width: 100, height: 100 }} size="large">
+                      <InventoryIcon sx={{ width: 50, height: 50 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip
+                    title="Order Management"
+                    onClick={() => {
+                      navigate("/order-manager");
+                    }}
+                  >
+                    <IconButton sx={{ width: 100, height: 100 }} size="large">
+                      <ShoppingCartIcon sx={{ width: 50, height: 50 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip
+                    title="User Management"
+                    onClick={() => {
+                      navigate("/user-manager");
+                    }}
+                  >
+                    <IconButton sx={{ width: 100, height: 100 }} size="large">
+                      <PeopleIcon sx={{ width: 50, height: 50 }} />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              ) : (
+                <Tooltip
+                  title="List Order"
+                  onClick={() => {
+                    navigate("/profile/list-order");
+                  }}
+                >
+                  <IconButton sx={{ width: 100, height: 100 }} size="large">
+                    <ShoppingCartIcon sx={{ width: 50, height: 50 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Stack>
           </Stack>
         </Grid>
@@ -221,10 +295,68 @@ export default function Profile() {
             alignItems={"center"}
             display={isModify ? "none" : "flex"}
           >
-            <Typography variant="h4">Email: {user.email}</Typography>
-            <Typography variant="h4">Phone Number: {user.phone}</Typography>
-            <Typography variant="h4">Full Name: {user.name}</Typography>
-            <Typography variant="h4">Address: {user.address}</Typography>
+            <Typography variant="h5">Infomation User</Typography>
+            <TableContainer>
+              <Table>
+                <TableBody>
+                  <TableRow hover>
+                    <TableCell
+                      width="50%"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Email
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                  </TableRow>
+                  <TableRow hover>
+                    <TableCell
+                      width="50%"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Phone Number
+                    </TableCell>
+                    <TableCell>{user.phone}</TableCell>
+                  </TableRow>
+                  <TableRow hover>
+                    <TableCell
+                      width="50%"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Full Name
+                    </TableCell>
+                    <TableCell>{user.name}</TableCell>
+                  </TableRow>
+                  <TableRow hover>
+                    <TableCell
+                      width="50%"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Gender
+                    </TableCell>
+                    <TableCell>{user.gender}</TableCell>
+                  </TableRow>
+                  <TableRow hover>
+                    <TableCell
+                      width="50%"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Birthday
+                    </TableCell>
+                    <TableCell>{user.birthday}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Stack>
           <Stack
             mx={10}
@@ -232,11 +364,11 @@ export default function Profile() {
             direction={"column"}
             onSubmit={handleSubmitUpdate}
             noValidate
+            alignItems={"flex-start"}
             sx={{ mt: 1 }}
-            alignItems={"center"}
             display={!isModify ? "none" : "flex"}
           >
-            {/* <TextField
+            <TextField
               margin="normal"
               required
               fullWidth
@@ -257,9 +389,9 @@ export default function Profile() {
               autoComplete="phone"
               defaultValue={user.phone}
               autoFocus
-            /> */}
-            <Typography variant="h4">Email: {user.email}</Typography>
-            <Typography variant="h4">Phone Number: {user.phone}</Typography>
+            />
+            {/* <Typography variant="h4">Email: {user.email}</Typography>
+            <Typography variant="h4">Phone Number: {user.phone}</Typography> */}
             <TextField
               margin="normal"
               required
@@ -271,22 +403,61 @@ export default function Profile() {
               defaultValue={user.name}
               autoFocus
             />
+            <FormControl
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <FormLabel
+                id="demo-row-radio-buttons-group-label"
+                sx={{ marginRight: 2 }}
+              >
+                Gender
+              </FormLabel>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="gender"
+                defaultValue={user?.gender}
+              >
+                <FormControlLabel
+                  value="female"
+                  control={<Radio />}
+                  label="Female"
+                />
+                <FormControlLabel
+                  value="male"
+                  control={<Radio />}
+                  label="Male"
+                />
+                <FormControlLabel
+                  value="other"
+                  control={<Radio />}
+                  label="Other"
+                />
+              </RadioGroup>
+            </FormControl>
             <TextField
-              margin="normal"
-              fullWidth
-              id="address"
-              label="Address"
-              name="address"
-              autoComplete="address"
-              defaultValue={user.address}
+              name="birthday"
+              label="Birthday"
+              type="date"
+              value={birthday}
               autoFocus
+              onChange={(e) => handleChangeBirthday(e.target.value)}
             />
             <Box direction="row">
               <Button
                 type="submit"
                 // fullWidth
                 variant="contained"
-                sx={{ mt: 3, mb: 2, width: "fit-content !important" }}
+                sx={{
+                  mt: 3,
+                  mb: 2,
+                  marginRight: 1,
+                  width: "fit-content !important",
+                }}
                 onClick={() => {
                   setIsModify(false);
                 }}
@@ -297,7 +468,12 @@ export default function Profile() {
                 // fullWidth
                 variant="contained"
                 color="error"
-                sx={{ mt: 3, mb: 2, width: "fit-content !important" }}
+                sx={{
+                  mt: 3,
+                  mb: 2,
+                  marginLeft: 1,
+                  width: "fit-content !important",
+                }}
                 onClick={() => {
                   setIsModify(false);
                 }}

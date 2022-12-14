@@ -9,87 +9,58 @@ import {
   Typography,
   Button,
 } from "@mui/material";
-import React from "react";
+import React ,{useState,useEffect}from "react";
 import Footer from "../Footer/Footer";
 import Header from "../Header/Header";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import ClearIcon from "@mui/icons-material/Clear";
 import RelatedProduct from "../RelatedProduct/RelatedProduct";
 import { Stack, Box, keyframes } from "@mui/system";
-
+import { useLocation, useNavigate } from "react-router-dom";
+import { checkOutStripe, removeItemCart } from "../../api/auth";
+import Navbar from "../Navbar/Navbar";
 export default function Cart() {
-  const [currentImage, setCurrentImage] = React.useState(
+  const location = useLocation();
+  let navigate = useNavigate();
+  const [updateCart,setUpdateCart] = useState({})
+  const [cart,setCart] = useState({})
+  const [totalCart,setTotalCart] = useState()
+  // console.log( { cart, totalCart } )
+  const [currentImage, setCurrentImage] = useState(
     require("../../public/product/product1.jpg")
   );
-
-  const [listProduct, setListProduct] = React.useState([
+  const [listProduct, setListProduct] = useState([]);
+  useEffect(() => {
+    if(location.state && location.state.cart){
+      console.log(location.state.cart)
+      setCart(location.state.cart)
+    }else if(localStorage.getItem('cart')){
+      setCart(JSON.parse(localStorage.getItem('cart')))
+    }
+    else {
+      setCart({})
+    }
+  }, []);
+  useEffect(() => {
+    if(location.state && location.state.totalCart){
+      setTotalCart(location.state.totalCart)
+    }
+    else {
+      setTotalCart(0)
+    }
+  }, []);
+  async function fetchListProduct(){
+    var arr =[]
+    if(cart && cart !== 'undefined')
     {
-      name: "Tablet White EliteBook Revolve 810 G2",
-      price: 9000,
-      oldPrice: 2299,
-      quantity: 12,
-      total: 999,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img2.jpg",
-      category: "Speakers",
-    },
-    {
-      name: "Purple Solo 2 Wireless",
-      price: 685,
-      oldPrice: 2299,
-      quantity: 12,
-      rated: 4,
-      total: 999,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img3.jpg",
-      category: "Speakers",
-    },
-    {
-      name: "Smartphone 6S 32GB LTE",
-      price: 499,
-      oldPrice: 2299,
-      quantity: 12,
-      rated: 2,
-      total: 999,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img4.jpg",
-      category: "Smartphone",
-    },
-    {
-      name: "Widescreen NX Mini F1 SMART NX",
-      price: 699,
-      oldPrice: 2299,
-      quantity: 12,
-      rated: 5,
-      total: 999,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img5.jpg",
-      category: "Camera",
-    },
-    {
-      name: "Camera C430W 4k Waterproof",
-      price: 799,
-      oldPrice: 2299,
-      quantity: 12,
-      rated: 5,
-      total: 999,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img8.jpg",
-      category: "Camera",
-    },
-    {
-      name: "Camera C430W 4k Waterproof",
-      price: 799,
-      oldPrice: 2299,
-      quantity: 12,
-      rated: 4,
-      total: 999,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img8.jpg",
-      category: "Camera",
-    },
-  ]);
-
+      arr = cart.products
+    }
+    setListProduct(arr)
+    // console.log("listproduct:",arr)
+  }
+  useEffect(() => {
+    fetchListProduct()
+  }, [cart]);
   function handleChangeQuantity(event, index) {
     let tempArray = [...listProduct];
     tempArray[index].quantity = event.target.value;
@@ -97,8 +68,52 @@ export default function Cart() {
     setListProduct(tempArray);
     // alert(listProduct[index].quantity)
   }
+const hanleRemoveItemCart = async(element)=>{
+  // console.log(element)
+  console.log({userId:localStorage.getItem('_id'),productId:element?.item._id})
+  const res = await removeItemCart({userId:localStorage.getItem('_id'),productId:element?.item._id,qty:element?.qty})
+  console.log("Res remove item::",res)
+  updateTotalPriceCart(res.element)
+  setCart(res.element)
+  setUpdateCart(res.element)
+  console.log("listProduct:",listProduct)
+  console.log("cart:",cart)
+}
+// update total price cart
+async function updateTotalPriceCart(data) {
+  var total = 0;
+  if (data && data.products.length > 0) {
+    data.products.map((element) => {
+      total += element.item.price * element.qty;
+    });
+  }
+  setTotalCart(total);
+}
 
+//handle checkout
+const handleCheckOut = async()=>{
+  if(cart&& cart.products.length>0){
+    let cartItems = cart.products.map((element)=>{
+      return {
+        id:element.item._id,
+        name:element.item.name,
+        price:element.item.price,
+        // images:`http://localhost:5000/static/public/products/${element.item.attachments[0]}`,
+        images:element.item.clouds[0],
+        quantity:element.qty
+      }
+    }) 
+    console.log("Checkout cartItem:",cartItems)
+  
+    const res = await checkOutStripe({cartItems:cartItems,userId:localStorage.getItem('_id'),cartId:cart._id});
+    if(res.url){
+      window.location.href = res.url
+      // window.open(res.url, '_blank');
+    }
+    console.log("Checkout res:",res)
 
+  }
+}
   //related product data
   var relatedProduct = [
     {
@@ -168,7 +183,7 @@ export default function Cart() {
   `
   return (
     <>
-      <Header />
+      <Navbar updateCart={updateCart}/>
       <Stack
         direction={"row"}
         paddingX={"11%"}
@@ -204,7 +219,7 @@ export default function Cart() {
               </Grid>
             </Grid>
             <Divider />
-            {listProduct
+            {listProduct && listProduct.length > 0
               ? listProduct.map((element, index) => {
                   return (
                     <Grid container justifyContent={"center"} spacing={1}>
@@ -215,35 +230,57 @@ export default function Cart() {
                           alignItems={"center"}
                           justifyContent={"flex-start"}
                         >
-                          <IconButton aria-label="delete" size="small">
+                          <IconButton aria-label="delete" size="small" onClick={()=>{hanleRemoveItemCart(element)}}>
                             <ClearIcon />
                           </IconButton>
                           <Box width={128} height={128} marginX={0.5}>
-                            <Card>
+                            <Card
+                            sx={{
+                              // maxWidth: 150,
+                              display: "flex",
+                              alignItems:'center',
+                              justifyContent:"center",
+                              width: "125px",
+                              height: "125px",
+                              position: "relative",
+                              overflow: "hidden",
+                              // marginY:0.5,
+                            }}
+                            >
                               <CardMedia
                                 component="img"
                                 height="128"
                                 width="128"
-                                image={element.avatar}
-                                alt={element.name}
+                                image={`${process.env.REACT_APP_URL_IMAGE_PRODUCT}/${element.item.attachments[0]}`}
+                                alt={element.item.name}
                                 // onClick={handleChangeCurrentImage}
+                                sx={{
+                                    // height: "600",
+                                    // width: "90%",
+                                    marginX: "5%",
+                                    // margin: "0 auto",
+                                    maxHeight:'100px',
+                                    maxWidth:'100px',
+                                    height: "auto",
+                                    width: "auto",  
+                                }}
                               />
                             </Card>
                           </Box>
-                          <Link
-                            href="#"
+                          <Typography
                             underline="none"
                             variant="h6"
                             color={"black"}
+                            onClick={()=>{navigate('/detail-product',{state:{product:element.item}})}}
                           >
-                            {element.name}
-                          </Link>
+                            {element.item.name}
+                          </Typography>
                         </Stack>
                       </Grid>
                       <Grid item xs={1.5} md={1.5} display={"flex"}>
                         <Box display={"flex"} alignItems={"center"}>
                           <Typography variant="h6" fontWeight={"bold"}>
-                            ${element.price.toLocaleString()}
+                            ${element.item.price.toLocaleString()}
                           </Typography>
                         </Box>
                       </Grid>
@@ -252,7 +289,7 @@ export default function Cart() {
                           <TextField
                             type="number"
                             size="small"
-                            defaultValue={element.quantity}
+                            defaultValue={element.qty}
                             onChange={(e) => handleChangeQuantity(e, index)}
                             InputProps={{
                               inputProps: {
@@ -283,7 +320,7 @@ export default function Cart() {
                       <Grid item xs={1.5} md={1.5} display={"flex"}>
                         <Box display={"flex"} alignItems={"center"}>
                           <Typography variant="h6" fontWeight={"bold"}>
-                            ${element.total.toLocaleString()}
+                            ${(element.qty * element.item.price).toLocaleString()}
                           </Typography>
                         </Box>
                       </Grid>
@@ -300,6 +337,7 @@ export default function Cart() {
                   placeholder="Coupon code"
                   variant="outlined"
                   sx={{
+                    display:'none',
                     "& .MuiOutlinedInput-root": {
                       "& fieldset": {
                         // borderRadius: `90px`,
@@ -315,6 +353,7 @@ export default function Cart() {
                   sx={{
                     backgroundColor:'#333e48',
                     color:'white',
+                    display:'none',
                     borderTopRightRadius:'50px',
                     borderBottomRightRadius:'50px',
                     "&:hover":{
@@ -331,8 +370,10 @@ export default function Cart() {
                     sx={{
                       borderRadius:'50px'
                     }}
+                    // onClick={()=>{navigate('/order',{state:{cart:cart}})}}
+                    onClick={()=>{handleCheckOut()}}
                   >
-                    Proceed to checkout
+                    Checkout
                 </Button>
             </Stack>
             <Grid container justifyContent={'flex-end'}>
@@ -342,20 +383,12 @@ export default function Cart() {
                   <Divider/>
                   <Box sx={{display:'flex', flexDirection:'row' , justifyContent:'space-between'}} paddingX={2}>
                     <Typography fontWeight={'bold'} variant='subtitle1'>Subtotal</Typography>
-                    <Typography variant='subtitle1'>$ 9999</Typography>
-                  </Box>
-                  <Divider/>
-                  <Box sx={{display:'flex', flexDirection:'row' , justifyContent:'space-between'}} paddingX={2}>
-                    <Typography fontWeight={'bold'} variant='subtitle1'>Shipping</Typography>
-                      <Typography variant='subtitle1'>Flat Rate: $300.00</Typography>
-                    {/* <Box sx={{display:'flex', flexDirection:'column',alignItems:'flex-end'}} >
-                      <Link href='#' variant='caption' fontWeight={'bold'} sx={{textDecoration:'underline'}} >Calculate Shipping</Link>
-                    </Box> */}
+                    <Typography variant='subtitle1'>$ {totalCart?.toLocaleString()}</Typography>
                   </Box>
                   <Divider/>
                   <Box sx={{display:'flex', flexDirection:'row' , justifyContent:'space-between'}} paddingX={2}>
                     <Typography fontWeight={'bold'} variant='subtitle1'>Total</Typography>
-                    <Typography variant='h6' fontWeight={'bold'}>$ 9999</Typography>
+                    <Typography variant='h6' fontWeight={'bold'}>$ {totalCart ? (totalCart+ 300).toLocaleString() : 0} </Typography>
                   </Box>
                 </Stack>
               </Grid>

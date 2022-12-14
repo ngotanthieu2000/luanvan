@@ -21,7 +21,7 @@ import {
   Alert,
 } from "@mui/material";
 import moment from "moment";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Box, Stack } from "@mui/system";
 import React, { useState, useEffect } from "react";
 import Header from "../Header/Header";
@@ -30,27 +30,66 @@ import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Footer from "../Footer/Footer";
 import RelatedProduct from "../RelatedProduct/RelatedProduct";
-import { getReviews } from "../../api/api_instance";
+import { checkAuthReview, getInventory, getListProductFeatured, getProductById, getReviews, updateBehavioursByView } from "../../api/api_instance";
 import { createReview, postAddToCart } from "../../api/auth";
+import { toast } from "react-toastify";
+import { TypeSpecimenRounded } from "@mui/icons-material";
+import Navbar from "../Navbar/Navbar";
 export default function DetailProduct() {
   const location = useLocation();
-  let { product } = location.state;
-  const [description, setDescription] = useState(
-    product?.description.split("\r\n")
-  );
-  // console.log("description:::",description)
-  // console.log("Product data:::", product);
-  const [attachments, setAttachments] = useState(
-    product ? product.attachments : undefined
-  );
-  const [valueRating, setValueRating] = useState(product?.overallReview);
-  const [currentImage, setCurrentImage] = useState(
-    attachments
-      ? `${process.env.REACT_APP_URL_IMAGE_PRODUCT}/${attachments[0]}`
-      : require("../../public/product/product1.jpg")
-  );
-  const [alignment, setAlignment] = useState("description");
-  const [optionReview, setOptionReview] = useState("description");
+  const {id} = useParams();
+  let navigate = useNavigate();
+  const [product,setProduct] = useState({})
+  const [type,setType] = useState('')
+  const [categories,setCategories] = useState('')
+  async function fetchDataProduct(){
+    const res = await getProductById({_id:id})
+    console.log("res getProductById:",res)
+    setProduct(res.element)
+  }
+  function handleUpdateAfterChangeProduct(){
+    console.log({type:product?.type,categories:product?.categories})
+    setType(product?.type)
+    setCategories(product?.categories)
+    setDescription(product?.description?.split("\r\n"))
+    setAttachments(product ? product.attachments : undefined)
+    setValueRating(product?.overallReview)
+    setCurrentImage(product?.attachments
+      ? `${process.env.REACT_APP_URL_IMAGE_PRODUCT}/${product?.attachments[0]}`
+      : require("../../public/product/product1.jpg"))
+  }
+  useEffect(() => {
+    fetchDataProduct()
+  }, [id]);
+
+  useEffect(() => {
+    fetchCheckValidReview();
+    fetchDataReview();
+    fetchInventory();
+    handleUpdateAfterChangeProduct()
+    var scrollingElement = document.scrollingElement || document.documentElement;
+        scrollingElement.scrollTop = 0;
+    console.log('set product change')
+  }, [product]);
+
+  const [description, setDescription] = useState([]);
+    // check valid review 
+    const [checkReview,setCheckReview] = useState(false)
+    async function fetchCheckValidReview(){
+      if(localStorage.getItem('_id')){
+        const res = await checkAuthReview({userId:localStorage.getItem('_id'),productId:product?._id})
+        console.log('res checkAuthReview:',res)
+        if(res.status==="Success"){
+          setCheckReview(true)
+        }
+      }
+    }
+  const [detail, setDetail] = useState();
+  const [attachments, setAttachments] = useState([]);
+  const [valueRating, setValueRating] = useState(0);
+  const [currentImage, setCurrentImage] = useState();
+  const [alignment, setAlignment] = useState("specification");
+  const [optionReview, setOptionReview] = useState("specification");
   const [contentReview, setContentReview] = useState("");
   const handleChangeAlignment = (event, newAlignment) => {
     if (newAlignment) {
@@ -65,12 +104,28 @@ export default function DetailProduct() {
   async function fetchDataReview() {
     const res = await getReviews({ _id: product?._id });
     // console.log("Res:::",res)
-    setReviews(res.element);
-    setPage(res.element[numPageReview]);
+    if (res.element) {
+      setPage(res.element[numPageReview]);
+      setReviews(res.element);
+    }
+  }
+  const [inventory, setInventory] = useState();
+  async function fetchInventory() {
+    const res = await getInventory({ _id: product?._id });
+    // console.log("Res:::",res)
+    if (res.element) {
+      setInventory(res.element.quantity);
+    } else {
+      setInventory(0);
+    }
   }
   useEffect(() => {
-    fetchDataReview();
+    if(!id) return window.location('/abc')
+    else{
+      fetchDataProduct()
+    }
   }, []);
+
   useEffect(() => {
     if (reviews[numPageReview - 1]) {
       setPage(reviews[numPageReview - 1]);
@@ -78,10 +133,12 @@ export default function DetailProduct() {
       setPage([]);
     }
   }, [numPageReview]);
+
   const handleSubmitNewReview = async (event) => {
     event.preventDefault();
     var data = new FormData();
     data.append("author", localStorage.getItem("name"));
+    data.append("userId", localStorage.getItem("_id"));
     data.append("body", contentReview);
     data.append("rating", ratingReview);
     data.append("product", product?._id);
@@ -91,166 +148,103 @@ export default function DetailProduct() {
       rating: data.get("rating"),
       product: data.get("product"),
       author: data.get("author"),
+      userId: data.get('userId')
     });
-    // console.log("Ress create new review:::",res)
+    console.log("Ress create new review:::",res)
+    product.overallReview = res.product.overallReview
+    setValueRating(res.product.overallReview)
+    product.countReview = res.product.countReview
     fetchDataReview();
     setContentReview("");
     setRatingReview(0);
   };
-  const changeOptionReview = () => {};
   const [qty, setQty] = useState();
-  const [updateCart,setUpdateCart] = useState();
-  const handleAddToCart = async (event) => {
-    event.preventDefault();
-    console.log(qty);
-    if(localStorage.getItem('_id')){
-      var res = await postAddToCart({ userId:localStorage.getItem('_id'), productId:product?._id, qty})
-      console.log('Res update cart:', res)
-      setUpdateCart(res.element)
-    }
-    else if(localStorage.getItem('cart') && localStorage.getItem('cart')!=='undefined'){
-      var cart = JSON.parse(localStorage.getItem('cart'));
-      cart.products.push({id:product._id,qty})
-      setUpdateCart(cart)
-    }
-    else{
-      const obj = {
-        user:'id_clone',
-        status:'saved',
-        products:[{id:product._id,qty}]
-      }
-      setUpdateCart(obj)
-    }
+  const [updateCart, setUpdateCart] = useState();
+  const showSuccessToastMessage = (msg) => {
+    toast.success(msg, {
+      position: toast.POSITION.TOP_CENTER,
+    });
   };
-  const productData = {
-    technicalProperties: [
-      "4.5 inch HD Touch Screen (1280 x 720)",
-      "Android 4.4 KitKat OS",
-      "1.4 GHz Quad Core™ Processor",
-      "20 MP Electro and 28 megapixel CMOS rear camera",
-      "4.5 inch HD Touch Screen (1280 x 720)",
-      "Android 4.4 KitKat OS",
-      "1.4 GHz Quad Core™ Processor",
-      "20 MP Electro and 28 megapixel CMOS rear camera",
-    ],
-    shortDescription:
-      "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt.",
-    code: "FW511948218",
-    newPrice: 1999,
-    oldPrice: 2299,
-    optionDepend: "Color",
-    listOptionDepent: ["Red", "Green", "Blue"],
-    description: [
-      {
-        name: "Perfectly Done",
-        detail:
-          "Praesent ornare, ex a interdum consectetur, lectus diam sodales elit, vitae egestas est enim ornare nisl. Nullam in lectus nec sem semper viverra. In lobortis egestas massa. Nam nec massa nisi. Suspendisse potenti. Quisque suscipit vulputate dui quis volutpat. Ut id elit facilisis, feugiat est in, tempus lacus. Ut ultrices dictum metus, a ultricies ex vulputate ac. Ut id cursus tellus, non tempor quam. Morbi porta diam nisi, id finibus nunc tincidunt eu.",
-      },
-      {
-        name: "Wireless",
-        detail:
-          "Fusce vitae nibh mi. Integer posuere, libero et ullamcorper facilisis, enim eros tincidunt orci, eget vestibulum sapien nisi ut leo. Cras finibus vel est ut mollis. Donec luctus condimentum ante et euismod.",
-      },
-      {
-        name: "Fresh Design",
-        detail:
-          "Integer bibendum aliquet ipsum, in ultrices enim sodales sed. Quisque ut urna vitae lacus laoreet malesuada eu at massa. Pellentesque nibh augue, pellentesque nec dictum vel, pretium a arcu. Duis eu urna suscipit, lobortis elit quis, ullamcorper massa.",
-      },
-    ],
-    specification: [
-      {
-        default: [
-          { name: "Weight", value: "7.25kg" },
-          { name: "Dimensions", value: "90 x 60 x 90 cm" },
-          { name: "Size", value: "One Size Fits all" },
-          { name: "color", value: "Black with Red, White with Gold" },
-          { name: "Guarantee", value: "5 years" },
-        ],
-        technical: [
-          { name: "Brand", value: "Apple" },
-          { name: "Item Height", value: "18 Millimeters" },
-          { name: "Item Width", value: "31.4 Centimeters" },
-          { name: "Screen Size", value: "13 Inches" },
-          { name: "Item Weight", value: "1.6 Kg" },
-          { name: "Product Dimensions", value: "21.9 x 31.4 x 1.8 cm" },
-          { name: "Item model number", value: "MF841HN/A" },
-          { name: "Processor Brand", value: "Intel" },
-          { name: "Processor Type", value: "Core i5" },
-          { name: "Processor Speed", value: "2.9 GHz" },
-          { name: "RAM Size", value: "8 GB" },
-          { name: "Hard Drive Size", value: "512 GB" },
-          { name: "Hard Disk Technology", value: "Solid State Drive" },
-          { name: "Graphics Coprocessor", value: "Intel Integrated Graphics" },
-          {
-            name: "Graphics Card Description",
-            value: "Integrated Graphics Card",
-          },
-          { name: "Hardware Platform", value: "Mac" },
-          { name: "Operating System", value: "Mac OS" },
-          { name: "Average Battery Life (in hours)", value: "9" },
-        ],
-      },
-    ],
+  const showErrorToastMessage = (msg) => {
+    toast.error(msg, {
+      position: toast.POSITION.TOP_CENTER,
+    });
   };
 
-  var relatedProduct = [
-    {
-      name: "Tablet White EliteBook Revolve 810 G2",
-      price: 9000,
-      oldPrice: 2299,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img2.jpg",
-      category: "Speakers",
-    },
-    {
-      name: "Purple Solo 2 Wireless",
-      price: 685,
-      oldPrice: 2299,
-      rated: 4,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img3.jpg",
-      category: "Speakers",
-    },
-    {
-      name: "Smartphone 6S 32GB LTE",
-      price: 499,
-      oldPrice: 2299,
-      rated: 2,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img4.jpg",
-      category: "Smartphone",
-    },
-    {
-      name: "Widescreen NX Mini F1 SMART NX",
-      price: 699,
-      oldPrice: 2299,
-      rated: 5,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img5.jpg",
-      category: "Camera",
-    },
-    {
-      name: "Camera C430W 4k Waterproof",
-      price: 799,
-      oldPrice: 2299,
-      rated: 5,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img8.jpg",
-      category: "Camera",
-    },
-    {
-      name: "Camera C430W 4k Waterproof",
-      price: 799,
-      oldPrice: 2299,
-      rated: 4,
-      avatar:
-        "https://transvelo.github.io/electro-html/2.0/assets/img/212X200/img8.jpg",
-      category: "Camera",
-    },
-  ];
+  const handleAddToCart = async (event) => {
+    event.preventDefault();
+    // console.log(qty)
+    if(!localStorage.getItem('_id')){
+      navigate('/login')
+    }
+    await fetchInventory()
+    if(qty > inventory){
+      return showErrorToastMessage('The product you wanted to buy is out of stock.')
+    }
+    // console.log(qty);
+    if (localStorage.getItem("_id")) {
+      var res = await postAddToCart({
+        userId: localStorage.getItem("_id"),
+        productId: product?._id,
+        qty,
+      });
+      console.log('Res update cart:', res)
+      setUpdateCart(res.element);
+      setInventory(res.inventory.quantity)
+    } else if (
+      localStorage.getItem("cart") &&
+      localStorage.getItem("cart") !== "undefined"
+    ) {
+      var cart = JSON.parse(localStorage.getItem("cart"));
+      let productExist = false;
+      for (let i = 0; i < cart.products.length; i++) {
+        // console.log('index',i)
+        if (cart.products[i] && cart.products[i].item._id === product._id) {
+          productExist = true;
+          let temp = parseInt(cart.products[i].qty) + parseInt(qty);
+          cart.products[i].qty = temp;
+          break;
+        } else {
+          productExist = false;
+        }
+      }
+      if (!productExist) {
+        cart.products.push({ item: product, qty });
+      }
+
+      setUpdateCart(cart);
+    } else {
+      const obj = {
+        user: "id_clone",
+        status: "saved",
+        products: [{ id: product._id, qty }],
+      };
+      setUpdateCart(obj);
+    }
+  };
+
+  const handleChangeQty = async(event)=>{
+    let {value} = event.target
+    if(value > inventory){
+      value = inventory;
+    }
+    else if(value <=0){
+      value =1;
+    }
+    return setQty(value);
+  }
+
+  useEffect(() => {
+    setTimeout(()=>{
+      if(localStorage.getItem('_id') &&  localStorage.getItem('_id') !== 'undefined'){
+        updateBehavioursByView({value:3, productId:product?._id,userId:localStorage.getItem('_id')})
+      }
+    },1500000
+    )
+  }, []);
   return (
     <div>
-      <Header updateCart={updateCart}/>
+      <Navbar updateCart={updateCart} />
       <Stack
         direction={"row"}
         paddingX={"11%"}
@@ -258,52 +252,40 @@ export default function DetailProduct() {
         spacing={2}
         height={50}
       >
-        <Link href="#" underline="none" color={"black"}>
+        <Link href="/shop" underline="none" color={"black"}>
           Home
         </Link>
         <NavigateNextIcon />
-        <Link href="#" underline="none" color={"black"}>
-          Accessories
-        </Link>
+        <Typography  underline="none" color={"black"}>
+          {product?.categories}
+        </Typography>
         <NavigateNextIcon />
-        <Link href="#" underline="none" color={"black"}>
-          Headphones
-        </Link>
+        <Typography  underline="none" color={"black"}
+          sx={{cursor:'pointer'}}
+          onClick={()=>{navigate(`/collection/${product?.categories}/${product?.type}`)}}
+        >
+          {product?.type}
+        </Typography>
         <NavigateNextIcon />
         <Typography>{product?.name}</Typography>
       </Stack>
-      <Stack direction={"row"} display={"block"} mt={2} height={900}>
+      <Stack direction={"row"} display={"block"} mt={2} height={'100%'}>
         <Grid container spacing={2} direction="row" justifyContent={"center"}>
           <Grid item xs={12} md={5} lg={5} paddingLeft={"0 !important"}>
-            <Stack direction={"column"}>
-              <Box
-                height={"100%"}
-                width={"100%"}
-                // bgcolor={"red"}
-                textAlign={"center"}
-              >
-                <CardMedia
-                  component="img"
-                  image={currentImage}
-                  alt={"currentImage"}
-                  style={{
-                    height: "600",
-                    width: "90%",
-                    marginLeft: "5%",
-                  }}
-                />
-              </Box>
+            <Stack
+              direction={"row"}
+              sx={{
+                alignItems: "center",
+                alignContent: "space-around",
+              }}
+            >
               <Box
                 sx={{
-                  height: 128,
-                  width: "90%",
                   display: "flex",
                   justifyContent: "center",
                   alignItem: "center",
-                  mt: 1,
-                  flexDirection: "row",
-                  // bgcolor: "#c7dfff",
-                  marginLeft: "5%",
+                  mt: 4,
+                  flexDirection: "column",
                 }}
               >
                 {attachments?.map((element) => {
@@ -314,6 +296,37 @@ export default function DetailProduct() {
                     />
                   );
                 })}
+              </Box>
+              <Box
+                // height={"100%"}
+                // width={"100%"}
+                textAlign={"center"}
+                sx={{
+                  // maxWidth: 150,
+                  display: "flex",
+                  justifyContent:"center",
+                  alignItems: "center",
+                  width: "600px",
+                  height: "600px",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  image={currentImage}
+                  alt={"currentImage"}
+                  style={{
+                    // height: "600",
+                    // width: "90%",
+                    marginX: "5%",
+                    display: "inline",
+                    maxHeight: "600px",
+                    maxWidth: "600px",
+                    height: "auto",
+                    width: "auto",
+                  }}
+                />
               </Box>
             </Stack>
           </Grid>
@@ -327,7 +340,7 @@ export default function DetailProduct() {
           >
             <Paper elevation={0}>
               <Stack
-                height={800}
+                height={"100%"}
                 width={"100%"}
                 direction={"column"}
                 spacing={1}
@@ -335,9 +348,10 @@ export default function DetailProduct() {
                 <Chip
                   label={product?.type}
                   component="a"
-                  href="#basic-chip"
+                  // href="#basic-chip"
                   clickable
                   sx={{ width: "fit-content" }}
+                  onClick={()=>{navigate(`/collection/${product?.categories}/${product?.type}`)}}
                 />
                 <Stack spacing={1}>
                   <Typography variant="h5">{product?.name}</Typography>
@@ -346,12 +360,13 @@ export default function DetailProduct() {
                       readOnly
                       name="simple-controlled"
                       value={valueRating}
+                      precision={0.01}
                       // onChange={(event, newValueRating) => {
                       //   setValueRating(newValueRating);
                       // }}
                     />
                     <Typography variant="caption" mt={0.5}>
-                      ({product?.coutReview} customer reviews)
+                      ({product?.countReview} customer reviews)
                     </Typography>
                   </Stack>
                 </Stack>
@@ -367,7 +382,7 @@ export default function DetailProduct() {
                   <Typography variant="h6">SKU:{product.sku}</Typography>
                   <Stack direction={"row"} spacing={2}>
                     <Typography variant="h3">
-                      ${product.price.toLocaleString()}
+                      ${product?.price?.toLocaleString()}
                     </Typography>
                     {/* <Typography
                       variant="h5"
@@ -387,7 +402,7 @@ export default function DetailProduct() {
                   spacing={0.5}
                 >
                   <Typography>Inventory:</Typography>
-                  <Typography>12</Typography>
+                  <Typography>{inventory}</Typography>
 
                   {/* <Box sx={{ minWidth: 300 }}>
                     <Select
@@ -409,39 +424,48 @@ export default function DetailProduct() {
                 </Stack>
                 <Divider />
                 <Stack direction="column">
-                  <Typography>Quantity</Typography>
-                  <Stack direction={"row"} spacing={2}>
-                    <TextField
-                      mr={1}
-                      id="qty"
-                      name="qty"
-                      type="number"
-                      value={qty}
-                      onChange={(e) => {
-                        setQty(e.target.value);
-                      }}
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                      InputProps={{ inputProps: { min: 1, max: 10 } }}
-                    />
-                    <Button
-                      variant="contained"
-                      color="success"
-                      size={"medium"}
-                      onClick={(e) => {
-                        handleAddToCart(e);
-                      }}
-                    >
-                      Add to Cart
-                    </Button>
-                  </Stack>
+                  {inventory > 0 ? (
+                    <>
+                      <Typography>Quantity</Typography>
+                      <Stack direction={"row"} spacing={2}>
+                        <TextField
+                          mr={1}
+                          id="qty"
+                          name="qty"
+                          type="number"
+                          value={qty}
+                          onChange={(e) => {
+                            handleChangeQty(e)
+                          }}
+                          InputLabelProps={{
+                            shrink: true,
+                          }}
+                          InputProps={{ inputProps: { min: 1, max: {inventory},step : 1 } }}
+                        />
+                        <Button
+                          variant="contained"
+                          color="success"
+                          size={"medium"}
+                          onClick={(e) => {
+                            handleAddToCart(e);
+                          }}
+                        >
+                          Add to Cart
+                        </Button>
+                      </Stack>
+                    </>
+                  ) : (
+                    <Typography>Het Hang</Typography>
+                  )}
                 </Stack>
               </Stack>
             </Paper>
           </Grid>
         </Grid>
       </Stack>
+      <br/>
+      <br/>
+      <br/>
       <Stack direction={"column"} sx={{ justifyContent: "center" }}>
         <ToggleButtonGroup
           color="primary"
@@ -453,7 +477,6 @@ export default function DetailProduct() {
             justifyContent: "center",
           }}
         >
-          <ToggleButton value="description">Description</ToggleButton>
           <ToggleButton value="specification">Specification</ToggleButton>
           <ToggleButton value="review">Reviews</ToggleButton>
         </ToggleButtonGroup>
@@ -466,20 +489,6 @@ export default function DetailProduct() {
         >
           <Paper elevation={6}>
             <Stack direction={"column"} spacing={2} padding={5}>
-              <Box display={optionReview === "description" ? "block" : "none"}>
-                {productData.description.map((element) => {
-                  return (
-                    <>
-                      <Box paddingY={5}>
-                        <Typography variant="h5"> {element.name} </Typography>
-                        <Typography variant="body1">
-                          {element.detail}
-                        </Typography>
-                      </Box>
-                    </>
-                  );
-                })}
-              </Box>
               {/* attributes */}
               <Box
                 display={optionReview === "specification" ? "block" : "none"}
@@ -492,36 +501,38 @@ export default function DetailProduct() {
                     <TableContainer>
                       <Table>
                         <TableBody>
-                          {product?.attributes.map((element, index, arr) => {
-                            let lastIndex;
-                            if (arr.length - 1 === index) {
-                              lastIndex = true;
-                            }
-                            return (
-                              <TableRow hover>
-                                <TableCell
-                                  width="50%"
-                                  sx={{
-                                    fontWeight: "bold",
-                                    borderBottom: lastIndex
-                                      ? "none"
-                                      : undefined,
-                                  }}
-                                >
-                                  {element.key}
-                                </TableCell>
-                                <TableCell
-                                  sx={{
-                                    borderBottom: lastIndex
-                                      ? "none"
-                                      : undefined,
-                                  }}
-                                >
-                                  {element.value}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
+                          {product.attributes
+                            ? product.attributes.map((element, index, arr) => {
+                                let lastIndex;
+                                if (arr.length - 1 === index) {
+                                  lastIndex = true;
+                                }
+                                return (
+                                  <TableRow hover>
+                                    <TableCell
+                                      width="50%"
+                                      sx={{
+                                        fontWeight: "bold",
+                                        borderBottom: lastIndex
+                                          ? "none"
+                                          : undefined,
+                                      }}
+                                    >
+                                      {element.key}
+                                    </TableCell>
+                                    <TableCell
+                                      sx={{
+                                        borderBottom: lastIndex
+                                          ? "none"
+                                          : undefined,
+                                      }}
+                                    >
+                                      {element.value}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            : undefined}
                         </TableBody>
                       </Table>
                     </TableContainer>
@@ -530,8 +541,10 @@ export default function DetailProduct() {
               </Box>
               {/* review box */}
               <Box display={optionReview === "review" ? "block" : "none"}>
-                <Stack direction={"column"} spacing={3}>
-                  <Stack direction={"column"} spacing={2}>
+                  {page?.lists?.length > 0 ?
+                  (
+                  <Stack direction={"column"} spacing={3}>
+                    <Stack direction={"column"} spacing={2}>
                     {page?.lists?.map((element) => {
                       return (
                         <Stack direction={"column"} spacing={1}>
@@ -559,12 +572,13 @@ export default function DetailProduct() {
                       }}
                     />
                   </Box>
-                  {/* <ButtonGroup variant="outlined" aria-label="outlined button group" sx={{justifyContent:"center"}}>
-                    <Button startIcon={<ArrowBackIcon/>} >Previous page</Button>
-                    <Button endIcon={<ArrowForwardIcon/>}>Next page</Button>
-                  </ButtonGroup> */}
                 </Stack>
-                <Stack direction="column" spacing={2}>
+                  ) : (<Typography variant="h5">There is no review for this product, be the first one to review this product.</Typography>)
+                  }
+                
+                {checkReview  ? 
+                (
+                  <Stack direction="column" spacing={2}>
                   <Typography variant="h5">Add a review</Typography>
                   <Stack
                     direction="row"
@@ -631,13 +645,31 @@ export default function DetailProduct() {
                     </Button>
                   </Stack>
                 </Stack>
+                )
+                :
+                 !localStorage.getItem('_id') ?
+                (
+                <Button
+                  variant="contained"
+                  onClick={(e) => {
+                    navigate('/login')
+                  }}
+                  sx={{
+                    textTransform: "unset !important",
+                    borderRadius: "20px",
+                  }}
+                >
+                  Login to continue
+                </Button>): undefined
+                }
+                
               </Box>
             </Stack>
           </Paper>
         </Box>
       </Stack>
       {/* Related Product */}
-      <RelatedProduct data={relatedProduct} />
+      <RelatedProduct type ={type} categories={categories} />
       <Footer />
     </div>
   );

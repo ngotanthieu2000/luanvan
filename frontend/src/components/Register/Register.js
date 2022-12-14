@@ -12,10 +12,11 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import {register} from '../../api/auth'
-import { NavLink } from 'react-router-dom';
+import {createCart} from '../../api/auth';
+import {register} from '../../api/api_instance';
+import { NavLink, useNavigate } from 'react-router-dom';
 export default function Register() {
-
+  let navigate = useNavigate()
   const theme = createTheme();
 
     const handleSubmit = async (event) => {
@@ -30,10 +31,11 @@ export default function Register() {
       let body = {email: data.get('email'),
       phone: data.get('phone'),
       name: data.get('name'),
-      address: data.get('address'),
+      // address: data.get('address'),
       password: data.get('password')}
       const res = await register(body)
       console.log("RES ---- REGISTER:::::",res)
+      navigate('/login')
     };
 
   return (
@@ -88,6 +90,17 @@ export default function Register() {
                   autoComplete="new-password"
                 />
               </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  required
+                  fullWidth
+                  name="confirm_password"
+                  label="Confirm Password"
+                  type="password"
+                  id="confirm_password"
+                  autoComplete="confirm-password"
+                />
+              </Grid>
               <Grid item xs={12} sm={12}>
                 <TextField
                   autoComplete="given-phone"
@@ -99,22 +112,6 @@ export default function Register() {
                   autoFocus
                 />
               </Grid>
-              <Grid item xs={12} sm={12}>
-                <TextField
-                  autoComplete="given-address"
-                  name="address"
-                  fullWidth
-                  id="address"
-                  label="Address"
-                  autoFocus
-                />
-              </Grid>
-              {/* <Grid item xs={12}>
-                <FormControlLabel
-                  control={<Checkbox value="allowExtraEmails" color="primary" />}
-                  label="I want to receive inspiration, marketing promotions and updates via email."
-                />
-              </Grid> */}
             </Grid>
             <Button
               type="submit"

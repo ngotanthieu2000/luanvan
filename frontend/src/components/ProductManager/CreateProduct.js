@@ -8,7 +8,7 @@ import {
   createCategories,
   updateCategories,
 } from "../../api/auth";
-import { getCategories, getProducts } from "../../api/api_instance";
+import { getBrands, getBrandsByCategories, getCategories, getProducts } from "../../api/api_instance";
 import { Stack } from "@mui/system";
 import {
   Box,
@@ -34,31 +34,44 @@ import {
   MenuItem,
   IconButton,
   CardMedia,
+  Autocomplete,
 } from "@mui/material";
-export default function CreateProduct() {
+import ProcessLoadingModal from "./ProcessLoadingModal";
+export default function CreateProduct({listCategories,changeView}) {
+    const [openProcessLoading,setOpenProcessLoading] = useState(false);
   const [limit, setLimit] = useState(10);
   const [page, setPage] = useState(0);
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
+  const [brand, setBrand] = useState([]);
+  const [arrayAttributes, setArrayAttributes] = useState('');
+  const handelParseArrayAttributes = ()=>{
+    let temp = arrayAttributes?.split('\n')
+    temp.map((element)=>{
+        let att = element.split('\t')
+        setAttributes((current) => [...current, { key:att[0], value:att[1] }]);
+        console.log({att})
+    })
+    // console.log({temp})
+  }
+  async function fetchDataBrand(cate){
+    const { element } = await getBrandsByCategories({categories:JSON.stringify(cate)});
+      console.log("brand_fetch", element);
+      setBrand(element);
+  }
   // product handle
-  const [products, setProducts] = useState();
-  useEffect(() => {
-    async function fetchData() {
-      const { element } = await getProducts();
-      console.log("product_fetch", element);
-      setProducts(element);
-    }
-    fetchData();
-    console.log("products", products);
-  }, []);
+//   useEffect(() => {
+//     if(brands){
+//         setBrand(brands)
+//     }
+//     else{
+//         fetchDataBrand();
+//     }
+//   }, [brands]);
   // modal controll
-  const [modalProduct, setModalProduct] = useState(false);
-  const [modalProductUpdate, setModalProductUpdate] = useState(false);
-  const [modalType, setModalType] = useState(false);
-  const [newType, setNewType] = useState(false);
   // fetch data Type
-  const [type, setType] = useState([]);
-  const [isType, setIsType] = useState("");
+  const [type, setType] = useState();
+  const [isType, setIsType] = useState();
   const [categories, setCategories] = useState([]);
   const [isCategories, setIsCategories] = useState(0);
   const handleChangeType = (event) => {
@@ -70,18 +83,34 @@ export default function CreateProduct() {
     // console.log("Change Categories:::",event.target.value)
     // console.log("temp:::",temp)
     setIsCategories(event.target.value);
+    let cate =[categories[event.target.value].name]
+    console.log(cate)
+    fetchDataBrand(cate);
     setType(temp);
   };
 
+async function fetchDataCategories() {
+    const { element } = await getCategories();
+    console.log("categories fetch data:::", element);
+    setCategories(element);
+    setIsCategories(0);
+    setType(element[0].types)
+}
   useEffect(() => {
-    async function fetchData() {
-      const { element } = await getCategories();
-      console.log("categories fetch data:::", element);
-      setCategories(element);
-      setIsCategories(element[0].name);
+    if(listCategories){
+        setCategories(listCategories)
+        setIsCategories(0);
+        setType(listCategories[0].types)
+    }else{
+        fetchDataCategories();
     }
-    fetchData();
-  }, []);
+  }, [listCategories]);
+  useEffect(() => {
+    if(categories&&categories[0]?.name){
+        const cate =[categories[0]?.name]
+        fetchDataBrand(cate);
+    }
+  }, [categories]);
   // controll atributes
   const [attributes, setAttributes] = useState([]);
   // const [item, setItem] = useState({});
@@ -110,24 +139,40 @@ export default function CreateProduct() {
   // submit create new product
   const handleSubmitCreateProduct = async (event) => {
     event.preventDefault();
+    // setOpenProcessLoading(true)
     const data = new FormData(event.currentTarget);
     data.append("attributes", JSON.stringify(attributes));
+    data.append("categories", categories[isCategories]?.name);
     console.log({
       name: data.get("name"),
       sku: data.get("sku"),
       type: data.get("type"),
+      categories: data.get("categories"),
       price: data.get("price"),
       brand: data.get("brand"),
+      inventory: data.get("inventory"),
       detail: data.get("detail"),
       description: data.get("description"),
       attributes: data.get("attributes"),
       attachments: data.getAll("attachments"),
     });
     var res = await createProduct(data);
+    // setOpenProcessLoading(false)
     console.log("RES::::", res);
-
+    changeView('ListProduct');
   };
+  const handleChangeInventory = (event)=>{
+    if(event.target.value < 0){
+        event.target.value  = 0
+    }
+  }
+  const handleChangePrice = (event)=>{
+    if(event.target.value < 0){
+        event.target.value  = 0
+    }
+    event.target.value = parseInt(event.target.value)
 
+  }
   return (
         <Box
         id="modal-modal-description"
@@ -165,15 +210,46 @@ export default function CreateProduct() {
             />
             </Grid>
             {/* price */}
-            <Grid item xs={12} sm={6}>
-            <TextField
-                required
-                fullWidth
-                name="price"
-                label="Price"
-                id="price"
-                autoComplete="price"
-            />
+            <Grid item xs={12} sm={3}>
+                <TextField
+                    required
+                    fullWidth
+                    type='number'
+                    sx={{
+                        "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
+                            display: "none",
+                          },
+                          "& input[type=number]": {
+                            MozAppearance: "textfield",
+                          },
+                    }}
+                    name="price"
+                    onChange={handleChangePrice}
+                    label="Price"
+                    id="price"
+                    autoComplete="price"
+                />
+            </Grid>
+            {/* inventory */}
+            <Grid item xs={12} sm={3}>
+                <TextField
+                    required
+                    fullWidth
+                    type='number'
+                    sx={{
+                        "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
+                            display: "none",
+                          },
+                          "& input[type=number]": {
+                            MozAppearance: "textfield",
+                          },
+                    }}
+                    name="inventory"
+                    onChange={handleChangeInventory}
+                    label="Inventory"
+                    id="inventory"
+                    autoComplete="inventory"
+                />
             </Grid>
             {/* categories product */}
             <Grid item xs={6} sm={3}>
@@ -184,7 +260,7 @@ export default function CreateProduct() {
                 id="Categories"
                 value={isCategories}
                 label="Categories"
-                // name="Categories"
+                name="Categories"
                 onChange={handleChangeCategories}
                 >
                 {categories && categories.length > 0 ? (
@@ -210,7 +286,7 @@ export default function CreateProduct() {
                 label="Type"
                 name="type"
                 onChange={handleChangeType}
-                // defaultValue={type ? type[0].name : ""}
+                defaultValue={type ? type[0].name : "Unknow"}
                 >
                 {type && type.length > 0 ? (
                     type.map((element, index) => {
@@ -225,14 +301,13 @@ export default function CreateProduct() {
             </Grid>
             {/* brand */}
             <Grid item xs={12} sm={6}>
-            <TextField
-                autoComplete="brand"
-                name="brand"
-                fullWidth
-                id="brand"
-                label="Brand"
-                autoFocus
-            />
+                <Autocomplete
+                    id="auto_brand"
+                    name="auto_brand"
+                    freeSolo
+                    options={brand.map((option) => option.name)}
+                    renderInput={(params) => <TextField name="brand" id="brand" {...params} label="Brand" />}
+                />
             </Grid>
             {/* textfield description */}
             <Grid item xs={12} sm={12}>
@@ -249,7 +324,7 @@ export default function CreateProduct() {
             />
             </Grid>
             {/* textfield detail */}
-            <Grid item xs={12} sm={12}>
+            {/* <Grid item xs={12} sm={12}>
             <TextField
                 autoComplete="detail"
                 name="detail"
@@ -261,10 +336,37 @@ export default function CreateProduct() {
                 autoFocus
                 multiline
             />
-            </Grid>
+            </Grid> */}
             {/* input attributes {value,key} */}
-            <Grid item xs={12} spacing={2}>
+            <Grid item xs={12} spacing={2} sx={{marginY:4}}>
             <Typography variant="h6">Attributes</Typography>
+            <Stack direction="row" justifyContent={"center"} spacing={2}>
+                <TextField
+                    autoComplete="arrayAttributes"
+                    name="arrayAttributes"
+                    // required
+                    fullWidth
+                    id="arrayAttributes"
+                    label="ArrayAttributes"
+                    value={arrayAttributes}
+                    onChange={(e)=>{setArrayAttributes(e.target.value)}}
+                    maxRows={4}
+                    autoFocus
+                    multiline
+                />
+                <IconButton
+                    color="primary"
+                    aria-label="add an alarm"
+                    onClick={(e) => {
+                        handelParseArrayAttributes();
+                        // handleAddAtribute(e);
+                        // setKey("");
+                        // setValue("");
+                    }}
+                >
+                <AddIcon />
+                </IconButton>
+            </Stack>  
             <Stack direction="row" justifyContent={"center"} spacing={2}>
                 <TextField
                 autoComplete="key"
@@ -459,6 +561,7 @@ export default function CreateProduct() {
         >
             Create
         </Button>
+        <ProcessLoadingModal parentOpen={openProcessLoading} />
         </Box>
   );
 }
