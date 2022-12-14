@@ -14,10 +14,12 @@ const {
   createToken,
   createRefreshToken,
 } = require("../services/UserService");
+const {initBehaviours} = require("../services/BehavioursService");
 const { upload_user } = require("../services/UploadImage");
 // model
 
 const User = require("../models/UserModel");
+const { initCart } = require("../services/CartServices");
 //
 function isExpiredToken(token, secret) {
   jwt.verify(token, secret, (err, decoded) => {
@@ -28,16 +30,20 @@ function isExpiredToken(token, secret) {
 module.exports = {
   register: async (req, res, next) => {
     try {
-      const { name, email, phone ,address} = req.body;
+      const { name, email, phone } = req.body;
       let  code  = await checkUser(email) ;
       if (code) {
         return res.status(400).json({ message: "The email or phone exists." });
       }
       let salt = bcrypt.genSaltSync(10);
       const password = await bcrypt.hashSync(req.body.password, salt);
-      console.log("PASSWORD:::", password);
+      // console.log("PASSWORD:::", password);
+      const newUser = await createUser({ name, email, phone, password});
+      console.log("newUser:::", newUser);
+      await initCart(newUser._id,next)
+      await initBehaviours(newUser._id,next)
       return res.status(200).json({
-        element: await createUser({ name, email, phone, password ,address}),
+        element: newUser
       });
     } catch (error) {
       console.log(error);
@@ -60,6 +66,11 @@ module.exports = {
       const userInfo = await User.findOne({email});
       // console.log("userInfo :::",userInfo)
       // kiem tra mat khau
+      if(userInfo.status !== 'active'){
+        return res
+          .status(401)
+          .json({ msg: "Account is currently locked.", status: "Error" });
+      }
       const isPasswordValid = bcrypt.compareSync(
         passwordCheck,
         userInfo.password
@@ -77,6 +88,9 @@ module.exports = {
         avatar: userInfo.avatar === 'unknown' ? '':userInfo.avatar,
         phone: userInfo.phone || "",
         email: userInfo.email || "user@gmail.com",
+        gender: userInfo.gender || "",
+        birthday: userInfo.birthday || "",
+        role: userInfo.role || "customer",
       };
       // tao access token
       const timeExpired = Date.now() + 1000 * 10;
@@ -131,6 +145,11 @@ module.exports = {
   refreshToken: async (req, res, next) => {
     try {
       const { refresh_token, email } = req.cookies;
+      if(!refresh_token || !email){
+        return res
+          .status(400)
+          .json({ msg: "Refreshtoken not found, please login again." });
+      }
       const user = await User.findOne({ email });
       let refreshToken = user.refreshToken;
       // tao data luu vao token
@@ -207,7 +226,7 @@ module.exports = {
   },
   getAll: async (req, res, next) => {
     try {
-      const user = await User.find();
+      const user = await User.find({role:{$ne:'admin'}}).select(['-recommenders','-refreshToken']);
       return res.status(200).json({ code: 200, element: user });
     } catch (error) {
       console.log(error);
@@ -302,12 +321,91 @@ module.exports = {
   },
   updateUser: async(req,res,next)=>{
     try{
-      const {_id, name, address} = req.body 
-      const update = await User.findOneAndUpdate({_id},{name,address},{new:true})
+      const {_id, name, gender,birthday, email , phone} = req.body 
+      const update = await User.findOneAndUpdate({_id},{name, gender,birthday, email , phone},{new:true})
       return res.status(200).json({status:"Success", msg:"Update successfully!", element:update})
     }catch (error) {
       console.log(error);
       next(error);
+    }
+  },
+  validAdmin: async (req,res,next)=>{
+    try {
+      console.log("Emaill::",req.body.email)
+      console.log("password::",req.body.password)
+      // console.log("checkUser::",await checkUser(req.body.email))
+      if (!await checkUser(req.body.email)) {
+        return res
+          .status(404)
+          .json({ msg: "Invalid email address or password.", status: "Error" });
+      }
+      // console.log("TK ton tai")
+      const passwordCheck = req.body.password || "12345";
+      const email = req.body.email.toLowerCase() || "user";
+      // lay pass tu database
+      const userInfo = await User.findOne({email});
+      // console.log("userInfo :::",userInfo)
+      // kiem tra mat khau
+      const isPasswordValid = bcrypt.compareSync(
+        passwordCheck,
+        userInfo.password
+      );
+      if (!isPasswordValid) {
+        return res
+          .status(401)
+          .json({ msg: "You don't have control.", status: "Error" });
+      }
+      else{
+        return res
+          .status(200)
+          .json({ msg: "Valid success.", status: "Success" });
+      }
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  },
+  disableUser: async(req,res,next)=>{
+    try {
+      const {_id} = req.body
+      const update = await User.findOneAndUpdate({_id},{$set:{status:'disable'}},{new:true})
+      return res.status(200).json({status:"Success", msg:"Disable User", element:update})
+    } catch (error) {
+      next(error)
+    }
+  },
+  activeUser: async(req,res,next)=>{
+    try {
+      const {_id} = req.body
+      const update = await User.findOneAndUpdate({_id},{$set:{status:'active'}},{new:true})
+      return res.status(200).json({status:"Success", msg:"Avtive User", element:update})
+    } catch (error) {
+      next(error)
+    }
+  },
+  getRecommender: async(req,res,next)=>{
+    try {
+      const {_id} = req.query
+      const listRecommender = await User.findById({_id}).populate('recommenders.item').select('recommenders')
+      return res.status(200).json({status:"Success", msg:"Get recommender", element:listRecommender})
+    } catch (error) {
+      next(error)
+    }
+  },
+  checkAdmin: async(req,res,next)=>{
+    try {
+      const {_id} = req.query
+      const check = await User.findOne({_id,role:'admin'})
+      if(check){
+        console.log('check admin role success')
+        return res.status(200).json({status:"Success"})
+      }else
+      {
+        console.log('check admin role failed')
+        return res.status(400).json({status:"Failed"})
+      }
+    } catch (error) {
+      next(error)
     }
   }
 };

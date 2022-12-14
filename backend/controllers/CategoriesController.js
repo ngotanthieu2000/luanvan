@@ -38,7 +38,7 @@ module.exports = {
   updateCategories: async (req, res, next) => {
     try {
       const { name, type } = req.body;
-      console.log({ name, type });
+      // console.log({ name, type });
       const cate = await Categories.findOneAndUpdate(
         { name },
         {
@@ -94,5 +94,5 @@ module.exports = {
     } catch (error) {
       next(error);
     }
-  },
+  }
 };

@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser')
 const cors = require('cors')
 const mongoose = require('mongoose')
 const route = require('./routes/index')
+require('dotenv').config()
 const port = process.env.port || 5000
 // const URI = `mongodb+srv://admin:QTdLBabhc9U57O0U@cluster0.uvbxmgu.mongodb.net/?retryWrites=true&w=majority`
 const URI = `mongodb://localhost:27017/electoshop`

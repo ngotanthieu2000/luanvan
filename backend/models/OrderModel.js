@@ -7,7 +7,7 @@ const OrderSchema = new Schema({
     },
     status:{
         type:String,
-        default:"pending"
+        default:"Pending"
     },
     items:[
         {
@@ -15,26 +15,41 @@ const OrderSchema = new Schema({
                 type:Schema.Types.ObjectId,
                 ref:'Products'
             },
+            quantity:Number,
             pricing:{
                 originalPrice:Number,
-                sale:Number
+                sale:{type:Number,default:0 }
             }
         }
     ],
     shippingAddress:{
-        street:String,
+        country:String,
+        line1:String,
+        line2:String,
         city:String,
         state:String,
-        zip:String
+        postal_code:String
     },
-    shipping:{
-        type:Object,
+    amount_shipping:{
+        type:Number,
+        default:0
+    },
+    amount_discount:{
+        type:Number,
+        default:0
+    },
+    amount_tax:{
+        type:Number,
+        default:0
     },
     payment:{
         type:Object,
     },
+    checkout:{
+        type:Object,
+    },
     subTotal:{
-        type:String
+        type:Number
     }
 },
 { timestamps: true }
@@ -42,4 +57,4 @@ const OrderSchema = new Schema({
 )
 
 
-module.exports = model('Orders',OrderSchema)
+module.exports = model('Order',OrderSchema)

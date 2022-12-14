@@ -24,5 +24,15 @@ const CartSchema = new Schema({
 
 )
 
-
+CartSchema.statics.deleteItem = (userId,productId) => {
+  let get = model("Carts").findOneAndUpdate(
+    { user: userId }, 
+    {$pullAll: {
+        products: [{item: productId}],
+    }
+    },
+    {new:true ,safe: true, upsert: true}
+    );
+  return get
+};
 module.exports = model('Carts',CartSchema)

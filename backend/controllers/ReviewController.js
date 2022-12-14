@@ -5,11 +5,14 @@ const { count } = require("../models/ReviewModel");
 // model
 
 const Review = require("../models/ReviewModel");
+const { updateBehaviours } = require('../services/BehavioursService');
+const { findProductByUser } = require('../services/OrderService');
+const { increaseAfterReview, updateOverallReview } = require('../services/ProductService');
 
 module.exports = {
   createReview: async (req, res, next) => {
     try {
-      const {  body, rating, author, product } = req.body;
+      const {  body, rating, author, product,userId } = req.body;
       // console.log({  body, rating, author, product })
       let id
       const get = await Review.getCount(product)
@@ -39,9 +42,15 @@ module.exports = {
           upsert: true,
         }
       );
+      await updateBehaviours({userId,value:rating,productId:product});
+      const increase = await increaseAfterReview({productId:product});
+      // console.log({increase})
+      const update = await updateOverallReview({productId:product,newRating:rating,overrall:increase.element.overallReview,countReview:increase.element.countReview})
+      // console.log({update})
+
       return res
         .status(200)
-        .json({ messge: "create reviews success ", element: review });
+        .json({ messge: "create reviews success ", element: review ,product:update.element});
     } catch (error) {
       console.log(error);
       next(error);
@@ -84,4 +93,16 @@ module.exports = {
       next(error);
     }
   },
+  checkAuthReview: async (req,res,next)=>{
+    try {
+      const {userId, productId} = req.body
+      const check = await findProductByUser({userId, productId},next);
+      if(check){
+        return res.status(200).json({status:"Success",msg:"Valid review success."})
+      }
+      return res.status(200).json({status:"Failed",msg:"Valid review failed."})
+    } catch (error) {
+      next(error)
+    }
+  }
 };

@@ -26,9 +26,8 @@ const ProductSchema = new Schema({
     view:{
         type:Number,
         default:0
-
     },
-    coutReview:{
+    countReview:{
         type:Number,
         default:0
 
@@ -36,7 +35,6 @@ const ProductSchema = new Schema({
     overallReview:{
         type:Number,
         default:0
-
     },
     description:{
         type:String
@@ -50,13 +48,16 @@ const ProductSchema = new Schema({
     attachments:[
        String
     ],
+    clouds:[
+        String
+     ],
     status:{
         type:String,
         default:'Active'
     },
     brand:{
         type:String,
-        default:"unknown"
+        ref:"Brands"
     },
     attributes:[
         new Schema({

@@ -84,32 +84,25 @@ module.exports = {
       expiresIn: refreshTokenLife,
     });
   },
-  updateRecommender: async ({ userId, listRecommender }) => {
+  updateRecommender: async ({ userId, listRecommender },next) => {
     try {
+      // console.log({ userId, listRecommender })
+      listRecommender.sort((a, b) =>Number(b.value) - Number(a.value))
+      // console.log('list after sort:' ,listRecommender)
+
       const update = await User.findOneAndUpdate(
         { _id: userId },
         {
-          $push: {
-            recommenders: {
-              $each: listRecommender,
-              $sort: { value: -1 },
-            },
-          },
+            recommenders: listRecommender,
         },
         {
           new: true,
-        },
-        (err, user) => {
-          if (err)
-            return {
-              code: "Error",
-              msg: "Error update recommender user document.",
-            };
-          return user;
         }
       );
+      return update;
     } catch (error) {
       console.log(error);
+      next(error)
     }
   },
 };

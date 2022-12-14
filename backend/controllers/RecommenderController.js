@@ -6,28 +6,31 @@ var recommender = new jsrecommender.Recommender();
       
 var table = new jsrecommender.Table();
 //model
-const Behaviours = require('../models/BehavioursModel ')
+const Behaviours = require('../models/BehavioursModel');
+const { updateRecommender } = require("../services/UserService");
 
   // table.setCell('[movie-name]', '[user]', [score]);
-table.setCell('Love at last', 'Alice', 5);
-table.setCell('Remance forever', 'Alice', 5);
-table.setCell('Nonstop car chases', 'Alice', 0);
-table.setCell('Sword vs. karate', 'Alice', 0);
-table.setCell('Love at last', 'Bob', 5);
-table.setCell('Cute puppies of love', 'Bob', 4);
-table.setCell('Nonstop car chases', 'Bob', 0);
-table.setCell('Sword vs. karate', 'Bob', 0);
-table.setCell('Love at last', 'Carol', 0);
-table.setCell('Cute puppies of love', 'Carol', 0);
-table.setCell('Nonstop car chases', 'Carol', 5);
-table.setCell('Sword vs. karate', 'Carol', 5);
-table.setCell('Love at last', 'Dave', 0);
-table.setCell('Remance forever', 'Dave', 0);
-table.setCell('Nonstop car chases', 'Dave', 4);
+// table.setCell('Love at last', 'Alice', 5);
+// table.setCell('Remance forever', 'Alice', 5);
+// table.setCell('Nonstop car chases', 'Alice', 0);
+// table.setCell('Sword vs. karate', 'Alice', 0);
+// table.setCell('Love at last', 'Bob', 5);
+// table.setCell('Cute puppies of love', 'Bob', 4);
+// table.setCell('Nonstop car chases', 'Bob', 0);
+// table.setCell('Sword vs. karate', 'Bob', 0);
+// table.setCell('Love at last', 'Carol', 0);
+// table.setCell('Cute puppies of love', 'Carol', 0);
+// table.setCell('Nonstop car chases', 'Carol', 5);
+// table.setCell('Sword vs. karate', 'Carol', 5);
+// table.setCell('Love at last', 'Dave', 0);
+// table.setCell('Remance forever', 'Dave', 0);
+// table.setCell('Nonstop car chases', 'Dave', 4);
 
-var model = recommender.fit(table);
+var model ;
+// var model = recommender.fit(table);
 // console.log(model);
-predicted_table = recommender.transform(table);
+var predicted_table ;
+// predicted_table = recommender.transform(table);
 
 // console.log("predicted_table:::",predicted_table);
 
@@ -57,20 +60,36 @@ function getValueColumn(columnName){
 module.exports = {
     setDataTable: async (req,res,next)=>{
         try {
+            // var table = new jsrecommender.Table();
             const data = await Behaviours.find()
+            // console.log({Behaviours:data})
             if(!data[0]) return res.status(400).json({code:"Error", msg:"Data empty"})
-
+            
             for(let i = 0 ;i<data.length; i++){
                 data[i]?.ratings.map((element)=>{
-                    table.setCell(element.item, data[i]?.userId, element.value);
+                    table.setCell(element.item.toString(), data[i]?.userId.toString(), element.value);
                 })
             }
-            let model = recommender.fit(table);
+            model = recommender.fit(table);
             predicted_table = recommender.transform(table);
-
-            req.body.predicted_table = predicted_table
-            next()
-
+            const listUser = []
+            for (var i = 0; i < predicted_table.columnNames.length; ++i) {
+                var user = predicted_table.columnNames[i];
+                var arrRecom = []
+                // console.log('For user: ' + user);
+                for (var j = 0; j < predicted_table.rowNames.length; ++j) {
+                    var item = predicted_table.rowNames[j];
+                    // console.log('Item [' + item + '] has actual rating of ' + Math.round(table.getCell(item, user)));
+                    // console.log('Item [' + item + '] is predicted to have rating ' + Math.round(predicted_table.getCell(item, user)));
+                    arrRecom.push({item:item,value:Math.round(predicted_table.getCell(item, user))})
+                }
+                // console.log('For user: ' + user + 'listRecom:'+arrRecom.toString())
+                const update = await updateRecommender({userId:user,listRecommender:arrRecom},next)
+                listUser.push(update)
+            }
+            // req.body.predicted_table = predicted_table
+            // next()
+            res.status(200).json({element:data,listUser,msg:'Success'})
         } catch (error) {
             console.log(error)
         }

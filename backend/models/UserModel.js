@@ -31,6 +31,12 @@ const UserSchema = new Schema(
       type:String,
       default:''
     },
+    gender:{
+      type:String,
+    },
+    birthday:{
+      type:String,
+    },
     refreshToken: {
       type: String,
     },
